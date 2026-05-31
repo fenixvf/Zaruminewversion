@@ -17,14 +17,17 @@ import {
   useUpdateWork,
   useListEpisodes,
   useAddEpisode,
+  useUpdateEpisode,
+  useDeleteEpisode,
   getListWorksQueryKey,
   getGetSiteStatsQueryKey,
   getListEpisodesQueryKey
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Search, Trash2, Edit, Plus, Tv, Film, Eye, ListVideo, X } from 'lucide-react';
+import { Loader2, Search, Trash2, Edit, Plus, Tv, Film, Eye, ListVideo, X, Save, Link } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import type { Episode } from '@workspace/api-client-react';
 
 function DashboardTab() {
   const { data: stats, isLoading } = useGetSiteStats();
@@ -281,13 +284,94 @@ function AddWorkTab() {
   );
 }
 
-function EpisodesManager({ workId, workTitle }: { workId: number, workTitle: string }) {
-  const { data: episodes, isLoading } = useListEpisodes(workId);
-  const addEpisode = useAddEpisode();
+function EditEpisodeForm({ episode, workId, onClose }: { episode: Episode; workId: number; onClose: () => void }) {
+  const updateEpisode = useUpdateEpisode();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    episodeNumber: String(episode.episodeNumber),
+    title: episode.title,
+    duration: episode.duration ? String(episode.duration) : '',
+    customThumbnailUrl: episode.customThumbnailUrl || '',
+    videoSlug: episode.videoSlug || '',
+  });
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateEpisode.mutateAsync({
+        workId,
+        episodeId: episode.id,
+        data: {
+          episodeNumber: parseInt(formData.episodeNumber, 10),
+          title: formData.title,
+          duration: formData.duration ? parseInt(formData.duration, 10) : null,
+          customThumbnailUrl: formData.customThumbnailUrl || null,
+          videoSlug: formData.videoSlug || null,
+        }
+      });
+      toast({ title: 'Sucesso', description: 'Episódio atualizado.' });
+      queryClient.invalidateQueries({ queryKey: getListEpisodesQueryKey(workId) });
+      onClose();
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao atualizar episódio.', variant: 'destructive' });
+    }
+  };
+
+  return (
+    <form onSubmit={handleSave} className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-zinc-400 text-xs">Nº do Episódio</Label>
+          <Input required type="number" value={formData.episodeNumber} onChange={e => setFormData(p => ({...p, episodeNumber: e.target.value}))} className="bg-zinc-900 border-white/10 h-9" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-zinc-400 text-xs">Duração (min)</Label>
+          <Input type="number" value={formData.duration} onChange={e => setFormData(p => ({...p, duration: e.target.value}))} placeholder="Opcional" className="bg-zinc-900 border-white/10 h-9" />
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-zinc-400 text-xs">Título</Label>
+        <Input required value={formData.title} onChange={e => setFormData(p => ({...p, title: e.target.value}))} className="bg-zinc-900 border-white/10 h-9" />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-zinc-400 text-xs">Thumbnail (URL)</Label>
+        <Input value={formData.customThumbnailUrl} onChange={e => setFormData(p => ({...p, customThumbnailUrl: e.target.value}))} placeholder="Opcional" className="bg-zinc-900 border-white/10 h-9" />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-zinc-300 text-xs font-semibold flex items-center gap-1.5">
+          <Link className="h-3.5 w-3.5 text-primary" />
+          URL do Servidor (Serve)
+        </Label>
+        <Input
+          value={formData.videoSlug}
+          onChange={e => setFormData(p => ({...p, videoSlug: e.target.value}))}
+          placeholder="https://...replit.dev/api/links/1/serve"
+          className="bg-zinc-900 border-primary/30 focus-visible:ring-primary font-mono text-xs h-9"
+        />
+      </div>
+      <div className="flex gap-2 pt-1">
+        <Button type="button" variant="outline" onClick={onClose} className="flex-1 border-white/10 text-zinc-400 hover:text-white h-9">
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={updateEpisode.isPending} className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold h-9">
+          {updateEpisode.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+          Salvar
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function EpisodesManager({ workId, workTitle }: { workId: number, workTitle: string }) {
+  const { data: episodes, isLoading } = useListEpisodes(workId);
+  const addEpisode = useAddEpisode();
+  const deleteEpisode = useDeleteEpisode();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const [editingEpisode, setEditingEpisode] = useState<Episode | null>(null);
   const [formData, setFormData] = useState({
     episodeNumber: '',
     title: '',
@@ -311,10 +395,22 @@ function EpisodesManager({ workId, workTitle }: { workId: number, workTitle: str
       });
       toast({ title: 'Sucesso', description: 'Episódio adicionado.' });
       queryClient.invalidateQueries({ queryKey: getListEpisodesQueryKey(workId) });
-      setIsOpen(false);
+      queryClient.invalidateQueries({ queryKey: getGetSiteStatsQueryKey() });
       setFormData({ episodeNumber: '', title: '', duration: '', customThumbnailUrl: '', videoSlug: '' });
     } catch (err: any) {
       toast({ title: 'Erro', description: 'Falha ao adicionar episódio', variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async (ep: Episode) => {
+    if (!confirm(`Remover "${ep.title}"?`)) return;
+    try {
+      await deleteEpisode.mutateAsync({ workId, episodeId: ep.id });
+      toast({ title: 'Removido', description: `${ep.title} foi removido.` });
+      queryClient.invalidateQueries({ queryKey: getListEpisodesQueryKey(workId) });
+      queryClient.invalidateQueries({ queryKey: getGetSiteStatsQueryKey() });
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao remover episódio.', variant: 'destructive' });
     }
   };
 
@@ -326,63 +422,80 @@ function EpisodesManager({ workId, workTitle }: { workId: number, workTitle: str
           Gerenciar Episódios
         </Button>
       </DialogTrigger>
-      <DialogContent className="bg-zinc-950 border-white/10 max-w-3xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="bg-zinc-950 border-white/10 max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl text-white">Episódios — {workTitle}</DialogTitle>
         </DialogHeader>
 
-        <div className="my-4 p-4 border border-white/10 rounded-lg bg-white/5">
-          <h4 className="font-semibold text-white mb-4">Adicionar Novo Episódio</h4>
-          <form onSubmit={handleAdd} className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-zinc-400">Número do Episódio *</Label>
-              <Input required type="number" value={formData.episodeNumber} onChange={e => setFormData(p => ({...p, episodeNumber: e.target.value}))} className="bg-zinc-900 border-white/10" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-zinc-400">Título</Label>
-              <Input value={formData.title} onChange={e => setFormData(p => ({...p, title: e.target.value}))} placeholder="Opcional" className="bg-zinc-900 border-white/10" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-zinc-400">Duração (minutos)</Label>
-              <Input type="number" value={formData.duration} onChange={e => setFormData(p => ({...p, duration: e.target.value}))} placeholder="Opcional" className="bg-zinc-900 border-white/10" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-zinc-400">Thumbnail (URL)</Label>
-              <Input value={formData.customThumbnailUrl} onChange={e => setFormData(p => ({...p, customThumbnailUrl: e.target.value}))} placeholder="Opcional" className="bg-zinc-900 border-white/10" />
-            </div>
-            <div className="col-span-2 space-y-2">
-              <Label className="text-zinc-300 font-semibold flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full bg-primary"></span>
-                Video Slug (proxy)
-              </Label>
-              <Input
-                value={formData.videoSlug}
-                onChange={e => setFormData(p => ({...p, videoSlug: e.target.value}))}
-                placeholder="ex: abc123xyz — slug do vídeo na plataforma proxy"
-                className="bg-zinc-900 border-primary/40 focus-visible:ring-primary font-mono text-sm"
-              />
-              {formData.videoSlug && (
-                <p className="text-xs text-zinc-500 font-mono truncate">
-                  → {import.meta.env.VITE_VIDEO_PROXY_BASE_URL || 'https://sitescrapingwally.onrender.com'}/proxy/v/{formData.videoSlug}
-                </p>
-              )}
-            </div>
-            <Button type="submit" disabled={addEpisode.isPending} className="col-span-2 bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-wider">
-              {addEpisode.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-              Adicionar Episódio
-            </Button>
-          </form>
-        </div>
+        {editingEpisode ? (
+          <div className="my-4 p-4 border border-primary/20 rounded-lg bg-primary/5">
+            <h4 className="font-semibold text-white mb-4 flex items-center gap-2">
+              <Edit className="h-4 w-4 text-primary" />
+              Editando EP {editingEpisode.episodeNumber} — {editingEpisode.title}
+            </h4>
+            <EditEpisodeForm
+              episode={editingEpisode}
+              workId={workId}
+              onClose={() => setEditingEpisode(null)}
+            />
+          </div>
+        ) : (
+          <div className="my-4 p-4 border border-white/10 rounded-lg bg-white/5">
+            <h4 className="font-semibold text-white mb-4">Adicionar Novo Episódio</h4>
+            <form onSubmit={handleAdd} className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-zinc-400">Número do Episódio *</Label>
+                <Input required type="number" value={formData.episodeNumber} onChange={e => setFormData(p => ({...p, episodeNumber: e.target.value}))} className="bg-zinc-900 border-white/10" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-zinc-400">Título</Label>
+                <Input value={formData.title} onChange={e => setFormData(p => ({...p, title: e.target.value}))} placeholder="Opcional" className="bg-zinc-900 border-white/10" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-zinc-400">Duração (minutos)</Label>
+                <Input type="number" value={formData.duration} onChange={e => setFormData(p => ({...p, duration: e.target.value}))} placeholder="Opcional" className="bg-zinc-900 border-white/10" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-zinc-400">Thumbnail (URL)</Label>
+                <Input value={formData.customThumbnailUrl} onChange={e => setFormData(p => ({...p, customThumbnailUrl: e.target.value}))} placeholder="Opcional" className="bg-zinc-900 border-white/10" />
+              </div>
+              <div className="col-span-2 space-y-2">
+                <Label className="text-zinc-300 font-semibold flex items-center gap-2">
+                  <Link className="h-3.5 w-3.5 text-primary" />
+                  URL do Servidor (Serve)
+                </Label>
+                <Input
+                  value={formData.videoSlug}
+                  onChange={e => setFormData(p => ({...p, videoSlug: e.target.value}))}
+                  placeholder="https://...replit.dev/api/links/1/serve"
+                  className="bg-zinc-900 border-primary/40 focus-visible:ring-primary font-mono text-sm"
+                />
+                {formData.videoSlug && (
+                  <p className="text-xs text-zinc-500 font-mono truncate">
+                    → {formData.videoSlug}
+                  </p>
+                )}
+              </div>
+              <Button type="submit" disabled={addEpisode.isPending} className="col-span-2 bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-wider">
+                {addEpisode.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                Adicionar Episódio
+              </Button>
+            </form>
+          </div>
+        )}
 
         <div className="space-y-2 mt-4">
-          <h4 className="font-semibold text-white mb-2">Episódios Cadastrados</h4>
+          <h4 className="font-semibold text-white mb-2">
+            Episódios Cadastrados
+            <span className="ml-2 text-xs font-normal text-zinc-500">{episodes?.length || 0} episódios</span>
+          </h4>
           {isLoading ? (
             <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
           ) : episodes?.length === 0 ? (
             <p className="text-zinc-500 text-sm">Nenhum episódio cadastrado.</p>
           ) : (
             episodes?.map(ep => (
-              <div key={ep.id} className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-lg border border-white/5">
+              <div key={ep.id} className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${editingEpisode?.id === ep.id ? 'bg-primary/10 border-primary/30' : 'bg-zinc-900/50 border-white/5 hover:border-white/10'}`}>
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="w-9 h-9 shrink-0 rounded bg-zinc-800 flex items-center justify-center font-bold text-zinc-400 text-sm">
                     {ep.episodeNumber}
@@ -392,14 +505,35 @@ function EpisodesManager({ workId, workTitle }: { workId: number, workTitle: str
                     <div className="flex items-center gap-3 mt-0.5">
                       {ep.duration && <span className="text-xs text-zinc-500">{ep.duration} min</span>}
                       {ep.videoSlug ? (
-                        <span className="text-xs text-green-400 font-mono truncate max-w-[180px]" title={ep.videoSlug}>
-                          ✓ {ep.videoSlug}
+                        <span className="text-xs text-green-400 font-mono truncate max-w-[200px]" title={ep.videoSlug}>
+                          ✓ Link configurado
                         </span>
                       ) : (
                         <span className="text-xs text-zinc-600">Sem vídeo</span>
                       )}
                     </div>
                   </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0 ml-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-zinc-400 hover:text-primary hover:bg-primary/10"
+                    onClick={() => setEditingEpisode(ep)}
+                    title="Editar episódio"
+                  >
+                    <Edit className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-zinc-400 hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => handleDelete(ep)}
+                    disabled={deleteEpisode.isPending}
+                    title="Remover episódio"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               </div>
             ))

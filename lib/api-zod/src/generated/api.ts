@@ -78,64 +78,6 @@ export const CreateWorkBody = zod.object({
 
 
 /**
- * @summary Recently added works
- */
-export const listRecentWorksQueryLimitDefault = 12;
-
-export const ListRecentWorksQueryParams = zod.object({
-  "limit": zod.coerce.number().default(listRecentWorksQueryLimitDefault)
-})
-
-export const ListRecentWorksResponseItem = zod.object({
-  "id": zod.number(),
-  "tmdbId": zod.number(),
-  "title": zod.string(),
-  "originalTitle": zod.string().nullish(),
-  "synopsis": zod.string().nullish(),
-  "posterPath": zod.string().nullish(),
-  "backdropPath": zod.string().nullish(),
-  "customBannerUrl": zod.string().nullish(),
-  "customThumbnailUrl": zod.string().nullish(),
-  "type": zod.enum(['tv', 'movie']),
-  "status": zod.enum(['ongoing', 'completed', 'upcoming']),
-  "genres": zod.array(zod.string()).optional(),
-  "releaseYear": zod.number().nullish(),
-  "totalEpisodes": zod.number().nullish(),
-  "rating": zod.number().nullish(),
-  "isFeatured": zod.boolean().optional(),
-  "viewCount": zod.number().optional(),
-  "createdAt": zod.string().optional()
-})
-export const ListRecentWorksResponse = zod.array(ListRecentWorksResponseItem)
-
-
-/**
- * @summary Featured/banner works
- */
-export const ListFeaturedWorksResponseItem = zod.object({
-  "id": zod.number(),
-  "tmdbId": zod.number(),
-  "title": zod.string(),
-  "originalTitle": zod.string().nullish(),
-  "synopsis": zod.string().nullish(),
-  "posterPath": zod.string().nullish(),
-  "backdropPath": zod.string().nullish(),
-  "customBannerUrl": zod.string().nullish(),
-  "customThumbnailUrl": zod.string().nullish(),
-  "type": zod.enum(['tv', 'movie']),
-  "status": zod.enum(['ongoing', 'completed', 'upcoming']),
-  "genres": zod.array(zod.string()).optional(),
-  "releaseYear": zod.number().nullish(),
-  "totalEpisodes": zod.number().nullish(),
-  "rating": zod.number().nullish(),
-  "isFeatured": zod.boolean().optional(),
-  "viewCount": zod.number().optional(),
-  "createdAt": zod.string().optional()
-})
-export const ListFeaturedWorksResponse = zod.array(ListFeaturedWorksResponseItem)
-
-
-/**
  * @summary Get a work by ID
  */
 export const GetWorkParams = zod.object({
@@ -182,27 +124,6 @@ export const UpdateWorkBody = zod.object({
   "backdropPath": zod.string().nullish(),
   "genres": zod.array(zod.string()).optional(),
   "rating": zod.number().nullish()
-})
-
-export const UpdateWorkResponse = zod.object({
-  "id": zod.number(),
-  "tmdbId": zod.number(),
-  "title": zod.string(),
-  "originalTitle": zod.string().nullish(),
-  "synopsis": zod.string().nullish(),
-  "posterPath": zod.string().nullish(),
-  "backdropPath": zod.string().nullish(),
-  "customBannerUrl": zod.string().nullish(),
-  "customThumbnailUrl": zod.string().nullish(),
-  "type": zod.enum(['tv', 'movie']),
-  "status": zod.enum(['ongoing', 'completed', 'upcoming']),
-  "genres": zod.array(zod.string()).optional(),
-  "releaseYear": zod.number().nullish(),
-  "totalEpisodes": zod.number().nullish(),
-  "rating": zod.number().nullish(),
-  "isFeatured": zod.boolean().optional(),
-  "viewCount": zod.number().optional(),
-  "createdAt": zod.string().optional()
 })
 
 
@@ -260,6 +181,33 @@ export const AddEpisodeBody = zod.object({
 
 
 /**
+ * @summary Update an episode (admin)
+ */
+export const UpdateEpisodeParams = zod.object({
+  "workId": zod.coerce.number(),
+  "episodeId": zod.coerce.number()
+})
+
+export const UpdateEpisodeBody = zod.object({
+  "episodeNumber": zod.number().optional(),
+  "title": zod.string().optional(),
+  "synopsis": zod.string().nullish(),
+  "customThumbnailUrl": zod.string().nullish(),
+  "videoSlug": zod.string().nullish(),
+  "duration": zod.number().nullish()
+})
+
+
+/**
+ * @summary Delete an episode (admin)
+ */
+export const DeleteEpisodeParams = zod.object({
+  "workId": zod.coerce.number(),
+  "episodeId": zod.coerce.number()
+})
+
+
+/**
  * @summary Record a view for a work
  */
 export const RecordViewParams = zod.object({
@@ -297,5 +245,3 @@ export const GetSiteStatsResponse = zod.object({
   "ongoingCount": zod.number().optional(),
   "completedCount": zod.number().optional()
 })
-
-

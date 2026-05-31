@@ -100,7 +100,7 @@ export default function AnimeDetail() {
               </button>
             </div>
             {activeEpisode.videoSlug ? (
-              <VideoPlayer slug={activeEpisode.videoSlug} title={`${work.title} - Ep. ${activeEpisode.episodeNumber}`} />
+              <VideoPlayer videoUrl={activeEpisode.videoSlug} title={`${work.title} - Ep. ${activeEpisode.episodeNumber}`} />
             ) : (
               <div className="aspect-video bg-zinc-900 rounded-xl flex flex-col items-center justify-center gap-3 border border-white/10">
                 <Play className="h-10 w-10 text-zinc-600" />

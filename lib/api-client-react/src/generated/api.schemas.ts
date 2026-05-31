@@ -186,6 +186,23 @@ export interface EpisodeInput {
   tmdbEpisodeId?: number | null;
 }
 
+export interface EpisodeUpdate {
+  episodeNumber?: number;
+  title?: string;
+  /** @nullable */
+  synopsis?: string | null;
+  /** @nullable */
+  customThumbnailUrl?: string | null;
+  /** @nullable */
+  videoSlug?: string | null;
+  /** @nullable */
+  duration?: number | null;
+}
+
+export interface LinkResolveResult {
+  resolvedUrl: string;
+}
+
 export interface ViewResult {
   viewCount: number;
 }
@@ -210,4 +227,3 @@ genre?: string | null;
 export type ListRecentWorksParams = {
 limit?: number;
 };
-

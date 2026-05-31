@@ -11,6 +11,9 @@ import {
   ListEpisodesParams,
   AddEpisodeParams,
   AddEpisodeBody,
+  UpdateEpisodeParams,
+  UpdateEpisodeBody,
+  DeleteEpisodeParams,
   RecordViewParams,
 } from "@workspace/api-zod";
 
@@ -216,6 +219,63 @@ router.post("/works/:id/episodes", async (req, res): Promise<void> => {
   }).returning();
 
   res.status(201).json(episode);
+});
+
+router.put("/works/:workId/episodes/:episodeId", async (req, res): Promise<void> => {
+  const params = UpdateEpisodeParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const parsed = UpdateEpisodeBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const updateData: Record<string, unknown> = {};
+  if (parsed.data.episodeNumber != null) updateData.episodeNumber = parsed.data.episodeNumber;
+  if (parsed.data.title != null) updateData.title = parsed.data.title;
+  if ("synopsis" in parsed.data) updateData.synopsis = parsed.data.synopsis ?? null;
+  if ("customThumbnailUrl" in parsed.data) updateData.customThumbnailUrl = parsed.data.customThumbnailUrl ?? null;
+  if ("videoSlug" in parsed.data) updateData.videoSlug = parsed.data.videoSlug ?? null;
+  if ("duration" in parsed.data) updateData.duration = parsed.data.duration ?? null;
+
+  const [episode] = await db
+    .update(episodesTable)
+    .set(updateData)
+    .where(
+      eq(episodesTable.id, params.data.episodeId)
+    )
+    .returning();
+
+  if (!episode) {
+    res.status(404).json({ error: "Episode not found" });
+    return;
+  }
+
+  res.json(episode);
+});
+
+router.delete("/works/:workId/episodes/:episodeId", async (req, res): Promise<void> => {
+  const params = DeleteEpisodeParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [episode] = await db
+    .delete(episodesTable)
+    .where(eq(episodesTable.id, params.data.episodeId))
+    .returning();
+
+  if (!episode) {
+    res.status(404).json({ error: "Episode not found" });
+    return;
+  }
+
+  res.sendStatus(204);
 });
 
 router.post("/works/:id/view", async (req, res): Promise<void> => {
