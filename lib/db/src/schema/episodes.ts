@@ -12,6 +12,7 @@ export const episodesTable = pgTable("episodes", {
   synopsis: text("synopsis"),
   thumbnailPath: text("thumbnail_path"),
   customThumbnailUrl: text("custom_thumbnail_url"),
+  videoSlug: text("video_slug"),
   duration: integer("duration"),
   airDate: text("air_date"),
   tmdbEpisodeId: integer("tmdb_episode_id"),

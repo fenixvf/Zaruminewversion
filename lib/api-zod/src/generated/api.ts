@@ -230,6 +230,7 @@ export const ListEpisodesResponseItem = zod.object({
   "synopsis": zod.string().nullish(),
   "thumbnailPath": zod.string().nullish(),
   "customThumbnailUrl": zod.string().nullish(),
+  "videoSlug": zod.string().nullish(),
   "duration": zod.number().nullish(),
   "airDate": zod.string().nullish(),
   "tmdbEpisodeId": zod.number().nullish()
@@ -251,6 +252,7 @@ export const AddEpisodeBody = zod.object({
   "synopsis": zod.string().nullish(),
   "thumbnailPath": zod.string().nullish(),
   "customThumbnailUrl": zod.string().nullish(),
+  "videoSlug": zod.string().nullish(),
   "duration": zod.number().nullish(),
   "airDate": zod.string().nullish(),
   "tmdbEpisodeId": zod.number().nullish()

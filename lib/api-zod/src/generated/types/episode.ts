@@ -20,6 +20,8 @@ export interface Episode {
   /** @nullable */
   customThumbnailUrl?: string | null;
   /** @nullable */
+  videoSlug?: string | null;
+  /** @nullable */
   duration?: number | null;
   /** @nullable */
   airDate?: string | null;
