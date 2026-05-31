@@ -119,18 +119,18 @@ function WorkItem({
   if (!work) return null;
 
   return (
-    <div className="group relative">
+    <div className="relative">
       <WorkCard work={work} />
       <button
-        onClick={() => onRemove(id, work.title)}
+        onClick={(e) => { e.preventDefault(); onRemove(id, work.title); }}
         disabled={removing}
         aria-label="Remover da lista"
-        className="absolute top-2 left-2 z-30 flex items-center justify-center h-8 w-8 rounded-full bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-primary disabled:opacity-50 backdrop-blur-sm"
+        className="absolute top-2 left-2 z-30 flex items-center justify-center h-7 w-7 rounded-full bg-black/80 text-white/70 hover:text-white hover:bg-primary transition-all duration-150 disabled:opacity-40 backdrop-blur-sm border border-white/10"
       >
         {removing ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
         ) : (
-          <Trash2 className="h-4 w-4" />
+          <Trash2 className="h-3.5 w-3.5" />
         )}
       </button>
     </div>
