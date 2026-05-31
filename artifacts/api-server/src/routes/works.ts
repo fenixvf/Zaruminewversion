@@ -209,6 +209,7 @@ router.post("/works/:id/episodes", async (req, res): Promise<void> => {
     synopsis: parsed.data.synopsis ?? null,
     thumbnailPath: parsed.data.thumbnailPath ?? null,
     customThumbnailUrl: parsed.data.customThumbnailUrl ?? null,
+    videoSlug: parsed.data.videoSlug ?? null,
     duration: parsed.data.duration ?? null,
     airDate: parsed.data.airDate ?? null,
     tmdbEpisodeId: parsed.data.tmdbEpisodeId ?? null,

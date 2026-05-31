@@ -292,7 +292,8 @@ function EpisodesManager({ workId, workTitle }: { workId: number, workTitle: str
     episodeNumber: '',
     title: '',
     duration: '',
-    customThumbnailUrl: ''
+    customThumbnailUrl: '',
+    videoSlug: '',
   });
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -304,13 +305,14 @@ function EpisodesManager({ workId, workTitle }: { workId: number, workTitle: str
           episodeNumber: parseInt(formData.episodeNumber, 10),
           title: formData.title || `Episódio ${formData.episodeNumber}`,
           duration: formData.duration ? parseInt(formData.duration, 10) : null,
-          customThumbnailUrl: formData.customThumbnailUrl || null
+          customThumbnailUrl: formData.customThumbnailUrl || null,
+          videoSlug: formData.videoSlug || null,
         }
       });
       toast({ title: 'Sucesso', description: 'Episódio adicionado.' });
       queryClient.invalidateQueries({ queryKey: getListEpisodesQueryKey(workId) });
       setIsOpen(false);
-      setFormData({ episodeNumber: '', title: '', duration: '', customThumbnailUrl: '' });
+      setFormData({ episodeNumber: '', title: '', duration: '', customThumbnailUrl: '', videoSlug: '' });
     } catch (err: any) {
       toast({ title: 'Erro', description: 'Falha ao adicionar episódio', variant: 'destructive' });
     }
@@ -326,14 +328,14 @@ function EpisodesManager({ workId, workTitle }: { workId: number, workTitle: str
       </DialogTrigger>
       <DialogContent className="bg-zinc-950 border-white/10 max-w-3xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl text-white">Episódios - {workTitle}</DialogTitle>
+          <DialogTitle className="text-xl text-white">Episódios — {workTitle}</DialogTitle>
         </DialogHeader>
 
         <div className="my-4 p-4 border border-white/10 rounded-lg bg-white/5">
           <h4 className="font-semibold text-white mb-4">Adicionar Novo Episódio</h4>
           <form onSubmit={handleAdd} className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-zinc-400">Número do Episódio</Label>
+              <Label className="text-zinc-400">Número do Episódio *</Label>
               <Input required type="number" value={formData.episodeNumber} onChange={e => setFormData(p => ({...p, episodeNumber: e.target.value}))} className="bg-zinc-900 border-white/10" />
             </div>
             <div className="space-y-2">
@@ -345,10 +347,27 @@ function EpisodesManager({ workId, workTitle }: { workId: number, workTitle: str
               <Input type="number" value={formData.duration} onChange={e => setFormData(p => ({...p, duration: e.target.value}))} placeholder="Opcional" className="bg-zinc-900 border-white/10" />
             </div>
             <div className="space-y-2">
-              <Label className="text-zinc-400">Thumbnail Personalizada (URL)</Label>
+              <Label className="text-zinc-400">Thumbnail (URL)</Label>
               <Input value={formData.customThumbnailUrl} onChange={e => setFormData(p => ({...p, customThumbnailUrl: e.target.value}))} placeholder="Opcional" className="bg-zinc-900 border-white/10" />
             </div>
-            <Button type="submit" disabled={addEpisode.isPending} className="col-span-2 bg-primary hover:bg-primary/90 text-white">
+            <div className="col-span-2 space-y-2">
+              <Label className="text-zinc-300 font-semibold flex items-center gap-2">
+                <span className="inline-block w-2 h-2 rounded-full bg-primary"></span>
+                Video Slug (proxy)
+              </Label>
+              <Input
+                value={formData.videoSlug}
+                onChange={e => setFormData(p => ({...p, videoSlug: e.target.value}))}
+                placeholder="ex: abc123xyz — slug do vídeo na plataforma proxy"
+                className="bg-zinc-900 border-primary/40 focus-visible:ring-primary font-mono text-sm"
+              />
+              {formData.videoSlug && (
+                <p className="text-xs text-zinc-500 font-mono truncate">
+                  → {import.meta.env.VITE_VIDEO_PROXY_BASE_URL || 'https://sitescrapingwally.onrender.com'}/proxy/v/{formData.videoSlug}
+                </p>
+              )}
+            </div>
+            <Button type="submit" disabled={addEpisode.isPending} className="col-span-2 bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-wider">
               {addEpisode.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
               Adicionar Episódio
             </Button>
@@ -356,7 +375,7 @@ function EpisodesManager({ workId, workTitle }: { workId: number, workTitle: str
         </div>
 
         <div className="space-y-2 mt-4">
-          <h4 className="font-semibold text-white mb-2">Lista de Episódios</h4>
+          <h4 className="font-semibold text-white mb-2">Episódios Cadastrados</h4>
           {isLoading ? (
             <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
           ) : episodes?.length === 0 ? (
@@ -364,16 +383,24 @@ function EpisodesManager({ workId, workTitle }: { workId: number, workTitle: str
           ) : (
             episodes?.map(ep => (
               <div key={ep.id} className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-lg border border-white/5">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded bg-zinc-800 flex items-center justify-center font-bold text-zinc-400 text-sm">
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="w-9 h-9 shrink-0 rounded bg-zinc-800 flex items-center justify-center font-bold text-zinc-400 text-sm">
                     {ep.episodeNumber}
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-white">{ep.title}</p>
-                    <p className="text-xs text-zinc-500">{ep.duration ? `${ep.duration} min` : 'Sem duração'}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{ep.title}</p>
+                    <div className="flex items-center gap-3 mt-0.5">
+                      {ep.duration && <span className="text-xs text-zinc-500">{ep.duration} min</span>}
+                      {ep.videoSlug ? (
+                        <span className="text-xs text-green-400 font-mono truncate max-w-[180px]" title={ep.videoSlug}>
+                          ✓ {ep.videoSlug}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-zinc-600">Sem vídeo</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                {/* Delete ep would go here */}
               </div>
             ))
           )}
