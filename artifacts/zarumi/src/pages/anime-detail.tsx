@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useRoute } from 'wouter';
+import { useRoute, useLocation } from 'wouter';
 import { useGetWork, useListEpisodes, useRecordView } from '@workspace/api-client-react';
 import { Layout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Play, Plus, Check, Star, Calendar, Clock, Loader2 } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
+import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -17,6 +18,8 @@ export default function AnimeDetail() {
   const recordView = useRecordView();
   
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [inList, setInList] = useState(false);
   const [listLoading, setListLoading] = useState(false);
 
@@ -43,22 +46,33 @@ export default function AnimeDetail() {
   }, [user, id]);
 
   const toggleList = async () => {
-    if (!user || !work) return; // TODO: redirect to login if no user
+    if (!user) {
+      setLocation('/login');
+      return;
+    }
+    if (!work) return;
     setListLoading(true);
     try {
       const docRef = doc(db, `users/${user.uid}/myList/${work.id}`);
       if (inList) {
         await deleteDoc(docRef);
         setInList(false);
+        toast({ title: 'Removido da lista', description: work.title });
       } else {
         await setDoc(docRef, {
           addedAt: serverTimestamp(),
-          workId: work.id
+          workId: work.id,
         });
         setInList(true);
+        toast({ title: 'Adicionado à lista!', description: work.title });
       }
-    } catch (err) {
-      console.error("Error toggling list:", err);
+    } catch (err: any) {
+      console.error('Error toggling list:', err);
+      toast({
+        title: 'Erro ao salvar na lista',
+        description: err?.message || 'Verifique as regras do Firestore no console do Firebase.',
+        variant: 'destructive',
+      });
     } finally {
       setListLoading(false);
     }
@@ -125,18 +139,16 @@ export default function AnimeDetail() {
                     <Play className="mr-2 h-5 w-5 fill-current" />
                     Assistir
                   </Button>
-                  {user && (
-                    <Button 
-                      size="lg" 
-                      variant="outline" 
-                      className={`rounded-full px-6 font-semibold border-white/20 backdrop-blur-md ${inList ? 'bg-white/20 text-white' : 'bg-black/40 text-white hover:bg-white/20'}`}
-                      onClick={toggleList}
-                      disabled={listLoading}
-                    >
-                      {listLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : inList ? <Check className="mr-2 h-5 w-5" /> : <Plus className="mr-2 h-5 w-5" />}
-                      {inList ? 'Na Lista' : 'Minha Lista'}
-                    </Button>
-                  )}
+                  <Button 
+                    size="lg" 
+                    variant="outline" 
+                    className={`rounded-full px-6 font-semibold border-white/20 backdrop-blur-md ${inList ? 'bg-white/20 text-white' : 'bg-black/40 text-white hover:bg-white/20'}`}
+                    onClick={toggleList}
+                    disabled={listLoading}
+                  >
+                    {listLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : inList ? <Check className="mr-2 h-5 w-5" /> : <Plus className="mr-2 h-5 w-5" />}
+                    {inList ? 'Na Lista' : 'Minha Lista'}
+                  </Button>
                 </div>
               </div>
             </div>
