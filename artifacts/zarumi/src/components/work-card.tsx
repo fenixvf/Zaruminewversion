@@ -16,8 +16,8 @@ export function WorkCard({ work, rank }: WorkCardProps) {
       : 'https://via.placeholder.com/500x750?text=No+Image';
 
   return (
-    <Link href={`/anime/${work.id}`} className="group relative block w-full overflow-hidden rounded-md transition-transform duration-300 hover:scale-[1.02] hover:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background">
-      <div className="aspect-[2/3] w-full overflow-hidden bg-zinc-900">
+    <Link href={`/anime/${work.id}`} className="group relative block w-full rounded-md transition-transform duration-300 hover:scale-[1.02] hover:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+      <div className="aspect-[2/3] w-full overflow-hidden rounded-md bg-zinc-900">
         <img
           src={imageUrl}
           alt={work.title}
@@ -57,7 +57,7 @@ export function WorkCard({ work, rank }: WorkCardProps) {
       
       {/* Rank number for Top 10 */}
       {rank && (
-        <div className="absolute -left-3 -bottom-3 z-20 font-heading text-[90px] font-black leading-none tracking-tighter text-transparent" style={{ WebkitTextStroke: '2px rgba(255, 255, 255, 0.4)', textShadow: '2px 4px 10px rgba(0,0,0,0.5)' }}>
+        <div className="absolute -left-7 -bottom-2 z-20 font-heading text-[80px] font-black leading-none tracking-tighter select-none pointer-events-none" style={{ WebkitTextStroke: '2px rgba(255,255,255,0.55)', color: 'transparent', textShadow: '0 4px 14px rgba(0,0,0,0.8)' }}>
           {rank}
         </div>
       )}
