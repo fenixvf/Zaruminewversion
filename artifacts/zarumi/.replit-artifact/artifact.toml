@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Zarumi - Streaming de Animes"
+version = "1.0.0"
+id = "artifacts/zarumi"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21382
+
+[services.development]
+run = "pnpm --filter @workspace/zarumi run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/zarumi", "run", "build" ]
+publicDir = "artifacts/zarumi/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21382"
+BASE_PATH = "/"
