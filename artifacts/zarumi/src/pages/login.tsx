@@ -47,19 +47,19 @@ export default function Login() {
         <div className="absolute inset-0 bg-background/80 backdrop-blur-[2px]" />
       </div>
 
-      <div className="relative z-10 w-full max-w-md p-8 sm:p-12 bg-zinc-950/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
-        <Link href="/" className="flex flex-col items-center gap-3 mb-8 cursor-pointer">
+      <div className="relative z-10 w-full max-w-md p-6 sm:p-8 bg-zinc-950/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
+        <Link href="/" className="flex flex-col items-center gap-3 mb-4 cursor-pointer">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/30">
             <PlayCircle className="h-8 w-8 text-white fill-white" />
           </div>
-          <span className="font-heading text-2xl font-bold tracking-tight text-white">Zarumi</span>
+          <span className="font-heading text-2xl font-black uppercase tracking-tight text-white">Zarumi</span>
         </Link>
 
-        <h1 className="text-2xl font-bold text-white mb-6 text-center">
+        <h1 className="font-heading text-3xl font-black uppercase text-white mb-6 text-center">
           {isRegister ? 'Criar nova conta' : 'Entrar na sua conta'}
         </h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {error && (
             <div className="p-3 text-sm bg-destructive/10 border border-destructive/20 text-destructive rounded-md">
               {error}
@@ -74,7 +74,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="bg-white/5 border-white/10 focus-visible:ring-primary h-11"
+              className="bg-white/5 border-white/10 focus-visible:ring-primary h-10"
               placeholder="seu@email.com"
             />
           </div>
@@ -87,12 +87,12 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="bg-white/5 border-white/10 focus-visible:ring-primary h-11"
+              className="bg-white/5 border-white/10 focus-visible:ring-primary h-10"
               placeholder="••••••••"
             />
           </div>
 
-          <Button type="submit" className="w-full h-11 font-bold mt-6 bg-primary hover:bg-primary/90 text-white" disabled={loading}>
+          <Button type="submit" className="w-full h-10 font-bold mt-6 bg-primary hover:bg-primary/90 text-white" disabled={loading}>
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (isRegister ? 'Cadastrar' : 'Entrar')}
           </Button>
         </form>

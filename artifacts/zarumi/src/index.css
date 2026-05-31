@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700;1,800&family=Barlow:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -43,7 +43,7 @@
   --font-sans: var(--app-font-sans);
   --font-serif: var(--app-font-serif);
   --font-mono: var(--app-font-mono);
-  --font-heading: 'Montserrat', sans-serif;
+  --font-heading: var(--app-font-heading);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -62,40 +62,41 @@
   --elevate-2: rgba(255,255,255, .09);
 
   /* Deep Blacks & Dark Grays */
-  --background: 0 0% 4%;
+  --background: 0 0% 3%;
   --foreground: 0 0% 98%;
 
-  --card: 0 0% 7%;
+  --card: 0 0% 6%;
   --card-foreground: 0 0% 98%;
-  --card-border: 0 0% 12%;
+  --card-border: 0 0% 9%;
 
-  --popover: 0 0% 7%;
+  --popover: 0 0% 6%;
   --popover-foreground: 0 0% 98%;
-  --popover-border: 0 0% 12%;
+  --popover-border: 0 0% 9%;
 
   /* Vivid Red / Crimson */
-  --primary: 357 96% 46%;
+  --primary: 0 100% 42%;
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 0 0% 13%;
+  --secondary: 0 0% 10%;
   --secondary-foreground: 0 0% 98%;
 
-  --muted: 0 0% 13%;
-  --muted-foreground: 0 0% 65%;
+  --muted: 0 0% 10%;
+  --muted-foreground: 0 0% 55%;
 
-  --accent: 357 96% 46%;
+  --accent: 0 100% 42%;
   --accent-foreground: 0 0% 100%;
 
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 98%;
 
-  --border: 0 0% 12%;
-  --input: 0 0% 12%;
-  --ring: 357 96% 46%;
+  --border: 0 0% 9%;
+  --input: 0 0% 9%;
+  --ring: 0 100% 42%;
 
-  --app-font-sans: 'Inter', sans-serif;
+  --app-font-sans: 'Barlow', sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: Menlo, monospace;
+  --app-font-heading: 'Barlow Condensed', sans-serif;
   --radius: .5rem;
 
   color-scheme: dark;
@@ -107,8 +108,14 @@
   }
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    font-family: 'Barlow', sans-serif;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-heading);
+    font-family: 'Barlow Condensed', sans-serif;
+    letter-spacing: -0.02em;
   }
+}
+
+.font-heading {
+  font-family: 'Barlow Condensed', sans-serif;
 }

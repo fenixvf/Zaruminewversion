@@ -30,8 +30,8 @@ export function WorkCard({ work, rank }: WorkCardProps) {
         
         {/* Play Icon */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-300 group-hover:opacity-100 scale-90 group-hover:scale-100">
-          <div className="rounded-full bg-primary/90 p-4 text-white shadow-lg backdrop-blur-sm">
-            <Play className="h-8 w-8 fill-current" />
+          <div className="rounded-full bg-primary/90 p-3 text-white shadow-lg backdrop-blur-sm">
+            <Play className="h-6 w-6 fill-current" />
           </div>
         </div>
 
@@ -44,8 +44,8 @@ export function WorkCard({ work, rank }: WorkCardProps) {
           )}
         </div>
         
-        <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-4 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-          <h3 className="font-heading text-lg font-bold leading-tight text-white line-clamp-2">
+        <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-4 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+          <h3 className="font-heading text-base font-bold uppercase leading-tight text-white line-clamp-2">
             {work.title}
           </h3>
           <div className="mt-1 flex items-center gap-2 text-xs text-zinc-300">
@@ -57,7 +57,7 @@ export function WorkCard({ work, rank }: WorkCardProps) {
       
       {/* Rank number for Top 10 */}
       {rank && (
-        <div className="absolute -left-4 -bottom-4 z-20 font-heading text-[120px] font-black leading-none tracking-tighter text-transparent" style={{ WebkitTextStroke: '2px rgba(255, 255, 255, 0.4)', textShadow: '2px 4px 10px rgba(0,0,0,0.5)' }}>
+        <div className="absolute -left-3 -bottom-3 z-20 font-heading text-[90px] font-black leading-none tracking-tighter text-transparent" style={{ WebkitTextStroke: '2px rgba(255, 255, 255, 0.4)', textShadow: '2px 4px 10px rgba(0,0,0,0.5)' }}>
           {rank}
         </div>
       )}

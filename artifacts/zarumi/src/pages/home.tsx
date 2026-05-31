@@ -32,7 +32,7 @@ function HeroBanner() {
   const bannerUrl = work.customBannerUrl || (work.backdropPath ? `https://image.tmdb.org/t/p/original${work.backdropPath}` : '');
 
   return (
-    <div className="relative h-[70vh] md:h-[85vh] w-full overflow-hidden bg-background">
+    <div className="relative h-[65vh] md:h-[75vh] w-full overflow-hidden bg-background">
       <AnimatePresence mode="wait">
         <motion.div
           key={currentIndex}
@@ -50,7 +50,7 @@ function HeroBanner() {
       </AnimatePresence>
 
       <div className="absolute inset-0 flex items-center">
-        <div className="container mx-auto px-4 md:px-8">
+        <div className="container mx-auto px-3 md:px-6">
           <div className="max-w-2xl">
             <motion.div
               key={`content-${currentIndex}`}
@@ -60,26 +60,26 @@ function HeroBanner() {
               className="space-y-4"
             >
               {work.type === 'movie' && (
-                <span className="inline-block rounded-full bg-primary/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary border border-primary/30">
+                <span className="inline-block rounded-sm bg-primary/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary border border-primary/30">
                   Filme
                 </span>
               )}
-              <h1 className="font-heading text-4xl md:text-6xl lg:text-7xl font-black tracking-tight text-white drop-shadow-lg">
+              <h1 className="font-heading text-5xl md:text-7xl lg:text-8xl font-black uppercase tracking-tighter text-white drop-shadow-lg">
                 {work.title}
               </h1>
               {work.synopsis && (
-                <p className="text-base md:text-lg text-zinc-300 line-clamp-3 md:line-clamp-4 drop-shadow max-w-xl">
+                <p className="text-sm md:text-base text-zinc-300 line-clamp-2 drop-shadow max-w-xl">
                   {work.synopsis}
                 </p>
               )}
-              <div className="flex items-center gap-4 pt-4">
-                <Button asChild size="lg" className="rounded-full px-8 font-semibold bg-white text-black hover:bg-zinc-200">
+              <div className="flex items-center gap-3 pt-4">
+                <Button asChild size="lg" className="rounded-sm px-6 font-bold uppercase tracking-wide bg-white text-black hover:bg-zinc-200">
                   <Link href={`/anime/${work.id}`}>
                     <Play className="mr-2 h-5 w-5 fill-current" />
                     Assistir
                   </Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="rounded-full px-8 font-semibold border-white/20 bg-black/40 text-white hover:bg-white/20 backdrop-blur-md">
+                <Button asChild size="lg" variant="outline" className="rounded-sm px-6 font-bold uppercase tracking-wide border-white/20 bg-black/40 text-white hover:bg-white/20 backdrop-blur-md">
                   <Link href={`/anime/${work.id}`}>
                     <Info className="mr-2 h-5 w-5" />
                     Mais Detalhes
@@ -92,12 +92,12 @@ function HeroBanner() {
       </div>
       
       {/* Navigation dots */}
-      <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-2 z-20">
+      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20">
         {featuredWorks.map((_, i) => (
           <button
             key={i}
             onClick={() => setCurrentIndex(i)}
-            className={`h-1.5 rounded-full transition-all ${i === currentIndex ? 'w-8 bg-primary' : 'w-2 bg-white/30 hover:bg-white/50'}`}
+            className={`h-1.5 rounded-sm transition-all ${i === currentIndex ? 'w-8 bg-primary' : 'w-2 bg-white/30 hover:bg-white/50'}`}
             aria-label={`Go to slide ${i + 1}`}
           />
         ))}
@@ -108,9 +108,9 @@ function HeroBanner() {
 
 function Section({ title, children }: { title: string, children: React.ReactNode }) {
   return (
-    <section className="py-8 md:py-12">
-      <div className="container mx-auto px-4 md:px-8">
-        <h2 className="mb-6 font-heading text-2xl font-bold text-white flex items-center gap-2">
+    <section className="py-4 md:py-6">
+      <div className="container mx-auto px-3 md:px-6">
+        <h2 className="mb-3 font-heading text-xl font-black uppercase tracking-wider text-white flex items-center gap-2">
           {title}
           <ChevronRight className="h-5 w-5 text-primary" />
         </h2>
@@ -132,13 +132,13 @@ export default function Home() {
         
         <Section title="Adicionados Recentemente">
           {isLoadingRecent ? (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="aspect-[2/3] animate-pulse rounded-md bg-zinc-800" />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {recentWorks?.map((work) => (
                 <WorkCard key={work.id} work={work} />
               ))}
@@ -148,15 +148,15 @@ export default function Home() {
 
         <Section title="Top 10 Zarumi">
           {isLoadingTop ? (
-            <div className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-3 md:grid-cols-5">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-2 sm:grid-cols-3 md:grid-cols-5">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="aspect-[2/3] animate-pulse rounded-md bg-zinc-800" />
               ))}
             </div>
           ) : (
-            <div className="flex overflow-x-auto pb-8 pt-4 -mx-4 px-4 gap-x-12 md:mx-0 md:px-0 scrollbar-hide snap-x">
+            <div className="flex overflow-x-auto pb-8 pt-4 -mx-4 px-4 gap-x-8 md:mx-0 md:px-0 scrollbar-hide snap-x">
               {topWorks?.slice(0, 10).map((work, index) => (
-                <div key={work.id} className="min-w-[160px] md:min-w-[200px] flex-shrink-0 snap-start pl-8 relative">
+                <div key={work.id} className="min-w-[140px] md:min-w-[160px] flex-shrink-0 snap-start pl-6 relative">
                   <WorkCard work={work as any} rank={index + 1} />
                 </div>
               ))}

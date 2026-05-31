@@ -35,14 +35,14 @@ export function Navbar() {
 
   const NavLinks = () => (
     <>
-      <Link href="/" className={`text-sm font-medium transition-colors hover:text-white ${location === '/' ? 'text-white' : 'text-zinc-400'}`}>
+      <Link href="/" className={`text-xs font-semibold uppercase tracking-widest transition-colors hover:text-white ${location === '/' ? 'text-white' : 'text-zinc-400'}`}>
         Início
       </Link>
-      <Link href="/browse" className={`text-sm font-medium transition-colors hover:text-white ${location.startsWith('/browse') ? 'text-white' : 'text-zinc-400'}`}>
+      <Link href="/browse" className={`text-xs font-semibold uppercase tracking-widest transition-colors hover:text-white ${location.startsWith('/browse') ? 'text-white' : 'text-zinc-400'}`}>
         Explorar
       </Link>
       {user && (
-        <Link href="/my-list" className={`text-sm font-medium transition-colors hover:text-white ${location === '/my-list' ? 'text-white' : 'text-zinc-400'}`}>
+        <Link href="/my-list" className={`text-xs font-semibold uppercase tracking-widest transition-colors hover:text-white ${location === '/my-list' ? 'text-white' : 'text-zinc-400'}`}>
           Minha Lista
         </Link>
       )}
@@ -51,7 +51,7 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-background/80 backdrop-blur-md">
-      <div className="container mx-auto px-4 flex h-16 items-center justify-between gap-4">
+      <div className="container mx-auto px-3 md:px-6 flex h-12 items-center justify-between gap-4">
         <div className="flex items-center gap-6 md:gap-10">
           <Sheet>
             <SheetTrigger asChild>
@@ -71,7 +71,7 @@ export function Navbar() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
               <PlayCircle className="h-5 w-5 text-white fill-white" />
             </div>
-            <span className="font-heading text-xl font-bold tracking-tight text-white">Zarumi</span>
+            <span className="font-heading text-2xl font-black uppercase tracking-tight text-white">Zarumi</span>
           </Link>
 
           <nav className="hidden md:flex gap-6">
@@ -85,7 +85,7 @@ export function Navbar() {
             <Input
               type="search"
               placeholder="Buscar animes..."
-              className="h-9 w-full rounded-full bg-white/5 pl-9 pr-4 text-sm border-transparent focus-visible:ring-primary focus-visible:bg-white/10 transition-colors placeholder:text-zinc-500"
+              className="h-8 w-full rounded-full bg-white/5 pl-9 pr-4 text-sm border-transparent focus-visible:ring-primary focus-visible:bg-white/10 transition-colors placeholder:text-zinc-500"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
