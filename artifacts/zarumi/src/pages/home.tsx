@@ -154,9 +154,9 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            <div className="flex overflow-x-auto pb-8 pt-4 -mx-4 px-4 gap-x-8 md:mx-0 md:px-0 scrollbar-hide snap-x">
+            <div className="flex overflow-x-auto pb-4 pt-2 -mx-4 px-4 gap-x-10 md:mx-0 md:px-0 scrollbar-hide snap-x">
               {topWorks?.slice(0, 10).map((work, index) => (
-                <div key={work.id} className="min-w-[140px] md:min-w-[160px] flex-shrink-0 snap-start pl-6 relative">
+                <div key={work.id} className="w-[110px] md:w-[130px] flex-shrink-0 snap-start pl-8 relative">
                   <WorkCard work={work as any} rank={index + 1} />
                 </div>
               ))}
