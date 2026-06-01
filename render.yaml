@@ -11,6 +11,8 @@ services:
       pnpm --filter @workspace/api-server run build
     startCommand: NODE_ENV=production PORT=$PORT pnpm --filter @workspace/api-server run start
     envVars:
+      - key: NODE_VERSION
+        value: "24"
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
