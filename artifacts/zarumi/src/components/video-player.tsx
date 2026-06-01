@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Loader2, AlertCircle, Play, Pause, Volume2, VolumeX, Maximize, Minimize, RotateCcw, RotateCw, ExternalLink } from 'lucide-react';
+import { Loader2, AlertCircle, Play, Pause, Volume2, VolumeX, Maximize, Minimize, RotateCcw, RotateCw, ExternalLink, History, RefreshCw } from 'lucide-react';
 import { resolveLink } from '@workspace/api-client-react';
 
 interface VideoPlayerProps {
@@ -9,15 +9,39 @@ interface VideoPlayerProps {
 
 function formatTime(seconds: number): string {
   if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
-  const m = Math.floor(seconds / 60);
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
+  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+const PROGRESS_PREFIX = 'zarumi_progress_';
+const SAVE_INTERVAL_MS = 5000;
+const MIN_RESUME_SECONDS = 30;
+const NEAR_END_RATIO = 0.95;
+
+function progressKey(url: string) {
+  return PROGRESS_PREFIX + btoa(encodeURIComponent(url)).replace(/=/g, '');
+}
+function saveProgress(url: string, time: number) {
+  try { localStorage.setItem(progressKey(url), String(Math.floor(time))); } catch {}
+}
+function loadProgress(url: string): number | null {
+  try {
+    const v = localStorage.getItem(progressKey(url));
+    return v ? parseInt(v, 10) : null;
+  } catch { return null; }
+}
+function clearProgress(url: string) {
+  try { localStorage.removeItem(progressKey(url)); } catch {}
 }
 
 export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const seekRef = useRef<HTMLInputElement>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
   const [resolving, setResolving] = useState(true);
@@ -35,19 +59,23 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
   const [showControls, setShowControls] = useState(true);
   const [skipFeedback, setSkipFeedback] = useState<{ dir: 'left' | 'right'; key: number } | null>(null);
   const [isSeeking, setIsSeeking] = useState(false);
+  const [resumePrompt, setResumePrompt] = useState<{ savedTime: number } | null>(null);
 
   const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTapRef = useRef<{ time: number; x: 'left' | 'right' } | null>(null);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playingRef = useRef(false);
+  const durationRef = useRef(0);
 
   useEffect(() => { playingRef.current = playing; }, [playing]);
+  useEffect(() => { durationRef.current = duration; }, [duration]);
 
   useEffect(() => {
     let cancelled = false;
     setResolving(true);
     setResolveError(false);
     setResolvedUrl(null);
+    setResumePrompt(null);
 
     resolveLink(videoUrl)
       .then(({ resolvedUrl }: { resolvedUrl: string }) => {
@@ -60,6 +88,30 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
     return () => { cancelled = true; };
   }, [videoUrl]);
 
+  const startSaveTimer = useCallback(() => {
+    if (saveTimerRef.current) clearInterval(saveTimerRef.current);
+    saveTimerRef.current = setInterval(() => {
+      const v = videoRef.current;
+      if (!v || v.paused || !durationRef.current) return;
+      const ratio = v.currentTime / durationRef.current;
+      if (v.currentTime > MIN_RESUME_SECONDS && ratio < NEAR_END_RATIO) {
+        saveProgress(videoUrl, v.currentTime);
+      }
+    }, SAVE_INTERVAL_MS);
+  }, [videoUrl]);
+
+  const stopSaveTimer = useCallback(() => {
+    if (saveTimerRef.current) { clearInterval(saveTimerRef.current); saveTimerRef.current = null; }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopSaveTimer();
+      if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    };
+  }, [stopSaveTimer]);
+
   const scheduleHide = useCallback(() => {
     if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
     hideControlsTimer.current = setTimeout(() => {
@@ -71,13 +123,6 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
     setShowControls(true);
     scheduleHide();
   }, [scheduleHide]);
-
-  useEffect(() => {
-    return () => {
-      if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
-      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-    };
-  }, []);
 
   const togglePlay = useCallback(() => {
     const v = videoRef.current;
@@ -95,11 +140,23 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
     showControlsNow();
   }, [showControlsNow]);
 
+  const handleResumeChoice = useCallback((resume: boolean) => {
+    const v = videoRef.current;
+    if (!v || !resumePrompt) return;
+    if (resume) {
+      v.currentTime = resumePrompt.savedTime;
+    } else {
+      clearProgress(videoUrl);
+    }
+    setResumePrompt(null);
+    v.play();
+    setPlaying(true);
+    scheduleHide();
+  }, [resumePrompt, videoUrl, scheduleHide]);
+
   const handleVideoAreaTouch = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     if (!resolvedUrl || resolving) return;
-
     e.preventDefault();
-
     const touch = e.changedTouches[0];
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const x = touch.clientX - rect.left;
@@ -118,13 +175,8 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
         if (lastTapRef.current) {
           lastTapRef.current = null;
           setShowControls(prev => {
-            if (!prev) {
-              scheduleHide();
-              return true;
-            } else if (playingRef.current) {
-              if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
-              return false;
-            }
+            if (!prev) { scheduleHide(); return true; }
+            else if (playingRef.current) { if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current); return false; }
             return prev;
           });
         }
@@ -190,11 +242,8 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
     const el = containerRef.current;
     if (!el) return;
     try {
-      if (!document.fullscreenElement) {
-        await el.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
+      if (!document.fullscreenElement) { await el.requestFullscreen(); }
+      else { await document.exitFullscreen(); }
     } catch {}
     showControlsNow();
   }, [showControlsNow]);
@@ -239,12 +288,7 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
         <div className="relative w-full aspect-video bg-zinc-950 flex flex-col items-center justify-center gap-3">
           <AlertCircle className="h-10 w-10 text-destructive" />
           <p className="text-zinc-300 font-semibold">Erro ao carregar o vídeo</p>
-          <a
-            href={videoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-sm text-primary hover:underline"
-          >
+          <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
             <ExternalLink className="h-4 w-4" />
             Abrir link direto
           </a>
@@ -272,8 +316,17 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
         src={resolvedUrl}
         className="absolute inset-0 w-full h-full object-contain bg-black"
         preload="metadata"
-        onPlay={() => { setPlaying(true); scheduleHide(); }}
-        onPause={() => { setPlaying(false); setShowControls(true); if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current); }}
+        onPlay={() => { setPlaying(true); startSaveTimer(); scheduleHide(); }}
+        onPause={() => {
+          setPlaying(false);
+          stopSaveTimer();
+          setShowControls(true);
+          if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+          const v = videoRef.current;
+          if (v && v.currentTime > MIN_RESUME_SECONDS && durationRef.current && v.currentTime / durationRef.current < NEAR_END_RATIO) {
+            saveProgress(videoUrl, v.currentTime);
+          }
+        }}
         onTimeUpdate={() => {
           const v = videoRef.current;
           if (!v || isSeeking) return;
@@ -285,6 +338,17 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
           if (!v) return;
           setDuration(v.duration);
           setLoading(false);
+
+          const saved = loadProgress(videoUrl);
+          if (saved && saved > MIN_RESUME_SECONDS && v.duration > 0 && saved / v.duration < NEAR_END_RATIO) {
+            setResumePrompt({ savedTime: saved });
+          }
+        }}
+        onEnded={() => {
+          setPlaying(false);
+          stopSaveTimer();
+          clearProgress(videoUrl);
+          setShowControls(true);
         }}
         onWaiting={() => setLoading(true)}
         onCanPlay={() => setLoading(false)}
@@ -310,7 +374,16 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
         </div>
       )}
 
-      {!playing && !loading && !videoError && (
+      {resumePrompt && !loading && !videoError && (
+        <ResumePrompt
+          savedTime={resumePrompt.savedTime}
+          title={title}
+          onResume={() => handleResumeChoice(true)}
+          onRestart={() => handleResumeChoice(false)}
+        />
+      )}
+
+      {!playing && !loading && !videoError && !resumePrompt && (
         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
           <div className="h-20 w-20 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 flex items-center justify-center">
             <Play className="h-9 w-9 fill-white text-white ml-1" />
@@ -325,8 +398,8 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
       <div
         className="absolute inset-0 z-10"
         style={{ bottom: showControls ? '80px' : 0 }}
-        onClick={handleVideoAreaClick}
-        onTouchStart={handleVideoAreaTouch}
+        onClick={resumePrompt ? undefined : handleVideoAreaClick}
+        onTouchStart={resumePrompt ? undefined : handleVideoAreaTouch}
       />
 
       <div
@@ -367,57 +440,28 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
         </div>
 
         <div className="px-3 pb-3 flex items-center gap-1">
-          <button
-            onClick={togglePlay}
-            className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors flex-shrink-0"
-          >
+          <button onClick={togglePlay} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors flex-shrink-0">
             {playing ? <Pause className="h-5 w-5 fill-white" /> : <Play className="h-5 w-5 fill-white ml-0.5" />}
           </button>
-
-          <button
-            onClick={() => skip(-5)}
-            className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors flex-shrink-0"
-          >
+          <button onClick={() => skip(-5)} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors flex-shrink-0">
             <RotateCcw className="h-4 w-4" />
           </button>
-
-          <button
-            onClick={() => skip(5)}
-            className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors flex-shrink-0"
-          >
+          <button onClick={() => skip(5)} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors flex-shrink-0">
             <RotateCw className="h-4 w-4" />
           </button>
-
           <div className="flex items-center gap-1 group/vol">
-            <button
-              onClick={toggleMute}
-              className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors flex-shrink-0"
-            >
+            <button onClick={toggleMute} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors flex-shrink-0">
               {muted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             </button>
             <div className="w-0 overflow-hidden group-hover/vol:w-20 transition-all duration-200 hidden sm:block">
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={muted ? 0 : volume}
-                onChange={handleVolumeChange}
-                className="w-20 h-1 cursor-pointer accent-primary"
-              />
+              <input type="range" min={0} max={1} step={0.05} value={muted ? 0 : volume} onChange={handleVolumeChange} className="w-20 h-1 cursor-pointer accent-primary" />
             </div>
           </div>
-
           <span className="text-white/70 text-xs font-mono ml-1 select-none whitespace-nowrap flex-shrink-0">
             {formatTime(currentTime)} / {formatTime(duration)}
           </span>
-
           <div className="flex-1" />
-
-          <button
-            onClick={toggleFullscreen}
-            className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors flex-shrink-0"
-          >
+          <button onClick={toggleFullscreen} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors flex-shrink-0">
             {fullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
           </button>
         </div>
@@ -426,16 +470,14 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
       <style>{`
         .seek-range::-webkit-slider-thumb {
           -webkit-appearance: none;
-          width: 16px;
-          height: 16px;
+          width: 16px; height: 16px;
           border-radius: 50%;
           background: white;
           cursor: pointer;
           box-shadow: 0 0 4px rgba(0,0,0,0.6);
         }
         .seek-range::-moz-range-thumb {
-          width: 16px;
-          height: 16px;
+          width: 16px; height: 16px;
           border-radius: 50%;
           background: white;
           cursor: pointer;
@@ -443,14 +485,65 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
           box-shadow: 0 0 4px rgba(0,0,0,0.6);
         }
         @media (max-width: 640px) {
-          .seek-range::-webkit-slider-thumb {
-            width: 20px;
-            height: 20px;
-          }
-          .seek-range::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-          }
+          .seek-range::-webkit-slider-thumb { width: 20px; height: 20px; }
+          .seek-range::-moz-range-thumb { width: 20px; height: 20px; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function ResumePrompt({ savedTime, title, onResume, onRestart }: {
+  savedTime: number;
+  title?: string;
+  onResume: () => void;
+  onRestart: () => void;
+}) {
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div
+        className="mx-4 w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900/95 p-6 shadow-2xl"
+        style={{ animation: 'fadeInScale 0.2s ease-out' }}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-10 w-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+            <History className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <p className="text-white font-semibold text-sm leading-tight">Continuar assistindo?</p>
+            {title && <p className="text-zinc-400 text-xs truncate mt-0.5">{title}</p>}
+          </div>
+        </div>
+
+        <p className="text-zinc-300 text-sm mb-5">
+          Você parou em{' '}
+          <span className="text-white font-bold font-mono bg-white/10 px-1.5 py-0.5 rounded">
+            {formatTime(savedTime)}
+          </span>
+          . Quer continuar de onde parou?
+        </p>
+
+        <div className="flex gap-3">
+          <button
+            onClick={onRestart}
+            className="flex-1 flex items-center justify-center gap-2 h-10 rounded-xl border border-white/10 bg-white/5 text-zinc-300 text-sm font-medium hover:bg-white/10 hover:text-white transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Recomeçar
+          </button>
+          <button
+            onClick={onResume}
+            className="flex-1 flex items-center justify-center gap-2 h-10 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors"
+          >
+            <Play className="h-4 w-4 fill-white" />
+            Continuar
+          </button>
+        </div>
+      </div>
+      <style>{`
+        @keyframes fadeInScale {
+          from { opacity: 0; transform: scale(0.94); }
+          to   { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </div>
@@ -463,24 +556,17 @@ function SkipAnimation({ dir }: { dir: 'left' | 'right' }) {
     const t = setTimeout(() => setVisible(false), 700);
     return () => clearTimeout(t);
   }, []);
-
   if (!visible) return null;
-
   return (
     <div
       className={`absolute top-0 bottom-0 ${dir === 'left' ? 'left-0' : 'right-0'} w-1/3 flex items-center justify-center z-20 pointer-events-none`}
       style={{
-        background: dir === 'left'
-          ? 'linear-gradient(to right, rgba(255,255,255,0.08), transparent)'
-          : 'linear-gradient(to left, rgba(255,255,255,0.08), transparent)',
+        background: dir === 'left' ? 'linear-gradient(to right, rgba(255,255,255,0.08), transparent)' : 'linear-gradient(to left, rgba(255,255,255,0.08), transparent)',
         borderRadius: dir === 'left' ? '12px 0 0 12px' : '0 12px 12px 0',
       }}
     >
       <div className="flex flex-col items-center gap-1 animate-pulse">
-        {dir === 'left'
-          ? <RotateCcw className="h-7 w-7 text-white drop-shadow" />
-          : <RotateCw className="h-7 w-7 text-white drop-shadow" />
-        }
+        {dir === 'left' ? <RotateCcw className="h-7 w-7 text-white drop-shadow" /> : <RotateCw className="h-7 w-7 text-white drop-shadow" />}
         <span className="text-white text-xs font-bold drop-shadow">{dir === 'left' ? '-5s' : '+5s'}</span>
       </div>
     </div>
