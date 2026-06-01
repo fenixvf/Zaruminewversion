@@ -17,6 +17,7 @@ function formatTime(seconds: number): string {
 export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const seekRef = useRef<HTMLInputElement>(null);
 
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
   const [resolving, setResolving] = useState(true);
@@ -33,9 +34,14 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
   const [videoError, setVideoError] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [skipFeedback, setSkipFeedback] = useState<{ dir: 'left' | 'right'; key: number } | null>(null);
+  const [isSeeking, setIsSeeking] = useState(false);
 
   const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTapRef = useRef<{ time: number; x: 'left' | 'right' } | null>(null);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const playingRef = useRef(false);
+
+  useEffect(() => { playingRef.current = playing; }, [playing]);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,31 +51,32 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
 
     resolveLink(videoUrl)
       .then(({ resolvedUrl }: { resolvedUrl: string }) => {
-        if (!cancelled) {
-          setResolvedUrl(resolvedUrl);
-          setResolving(false);
-        }
+        if (!cancelled) { setResolvedUrl(resolvedUrl); setResolving(false); }
       })
       .catch(() => {
-        if (!cancelled) {
-          setResolveError(true);
-          setResolving(false);
-        }
+        if (!cancelled) { setResolveError(true); setResolving(false); }
       });
 
     return () => { cancelled = true; };
   }, [videoUrl]);
 
-  const resetHideTimer = useCallback(() => {
+  const scheduleHide = useCallback(() => {
     if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
-    setShowControls(true);
     hideControlsTimer.current = setTimeout(() => {
-      if (videoRef.current && !videoRef.current.paused) setShowControls(false);
+      if (playingRef.current) setShowControls(false);
     }, 3000);
   }, []);
 
+  const showControlsNow = useCallback(() => {
+    setShowControls(true);
+    scheduleHide();
+  }, [scheduleHide]);
+
   useEffect(() => {
-    return () => { if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current); };
+    return () => {
+      if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    };
   }, []);
 
   const togglePlay = useCallback(() => {
@@ -77,41 +84,22 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
     if (!v) return;
     if (v.paused) { v.play(); setPlaying(true); }
     else { v.pause(); setPlaying(false); }
-    resetHideTimer();
-  }, [resetHideTimer]);
+    showControlsNow();
+  }, [showControlsNow]);
 
   const skip = useCallback((seconds: number) => {
     const v = videoRef.current;
     if (!v) return;
     v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + seconds));
     setSkipFeedback({ dir: seconds > 0 ? 'right' : 'left', key: Date.now() });
-    resetHideTimer();
-  }, [resetHideTimer]);
+    showControlsNow();
+  }, [showControlsNow]);
 
-  const handleVideoClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const handleVideoAreaTouch = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     if (!resolvedUrl || resolving) return;
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const side: 'left' | 'right' = x < rect.width / 2 ? 'left' : 'right';
-    const now = Date.now();
-    const last = lastTapRef.current;
 
-    if (last && now - last.time < 300 && last.x === side) {
-      skip(side === 'left' ? -5 : 5);
-      lastTapRef.current = null;
-    } else {
-      lastTapRef.current = { time: now, x: side };
-      setTimeout(() => {
-        if (lastTapRef.current && Date.now() - lastTapRef.current.time >= 280) {
-          togglePlay();
-          lastTapRef.current = null;
-        }
-      }, 300);
-    }
-  }, [resolvedUrl, resolving, skip, togglePlay]);
+    e.preventDefault();
 
-  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
-    if (!resolvedUrl || resolving) return;
     const touch = e.changedTouches[0];
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const x = touch.clientX - rect.left;
@@ -120,21 +108,65 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
     const last = lastTapRef.current;
 
     if (last && now - last.time < 300 && last.x === side) {
-      e.preventDefault();
-      skip(side === 'left' ? -5 : 5);
+      if (tapTimerRef.current) { clearTimeout(tapTimerRef.current); tapTimerRef.current = null; }
       lastTapRef.current = null;
+      skip(side === 'left' ? -5 : 5);
     } else {
       lastTapRef.current = { time: now, x: side };
+      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = setTimeout(() => {
+        if (lastTapRef.current) {
+          lastTapRef.current = null;
+          setShowControls(prev => {
+            if (!prev) {
+              scheduleHide();
+              return true;
+            } else if (playingRef.current) {
+              if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+              return false;
+            }
+            return prev;
+          });
+        }
+      }, 300);
     }
-  }, [resolvedUrl, resolving, skip]);
+  }, [resolvedUrl, resolving, skip, scheduleHide]);
 
-  const handleSeek = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoAreaClick = useCallback(() => {
+    if (!resolvedUrl || resolving) return;
+    togglePlay();
+  }, [resolvedUrl, resolving, togglePlay]);
+
+  const handleSeekChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = videoRef.current;
     if (!v) return;
-    v.currentTime = Number(e.target.value);
-    setCurrentTime(Number(e.target.value));
-    resetHideTimer();
-  }, [resetHideTimer]);
+    const val = Number(e.target.value);
+    v.currentTime = val;
+    setCurrentTime(val);
+  }, []);
+
+  const handleSeekTouchStart = useCallback((e: React.TouchEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    setIsSeeking(true);
+    showControlsNow();
+    if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+  }, [showControlsNow]);
+
+  const handleSeekTouchEnd = useCallback((e: React.TouchEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    setIsSeeking(false);
+    scheduleHide();
+  }, [scheduleHide]);
+
+  const handleSeekMouseDown = useCallback(() => {
+    setIsSeeking(true);
+    if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+  }, []);
+
+  const handleSeekMouseUp = useCallback(() => {
+    setIsSeeking(false);
+    scheduleHide();
+  }, [scheduleHide]);
 
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = videoRef.current;
@@ -143,16 +175,16 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
     v.volume = vol;
     setVolume(vol);
     setMuted(vol === 0);
-    resetHideTimer();
-  }, [resetHideTimer]);
+    showControlsNow();
+  }, [showControlsNow]);
 
   const toggleMute = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
     v.muted = !v.muted;
     setMuted(v.muted);
-    resetHideTimer();
-  }, [resetHideTimer]);
+    showControlsNow();
+  }, [showControlsNow]);
 
   const toggleFullscreen = useCallback(async () => {
     const el = containerRef.current;
@@ -160,14 +192,12 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
     try {
       if (!document.fullscreenElement) {
         await el.requestFullscreen();
-        setFullscreen(true);
       } else {
         await document.exitFullscreen();
-        setFullscreen(false);
       }
     } catch {}
-    resetHideTimer();
-  }, [resetHideTimer]);
+    showControlsNow();
+  }, [showControlsNow]);
 
   useEffect(() => {
     const onFsChange = () => setFullscreen(!!document.fullscreenElement);
@@ -226,124 +256,134 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
   return (
     <div
       ref={containerRef}
-      className="relative w-full bg-black rounded-xl overflow-hidden border border-white/10 group select-none"
-      onMouseMove={resetHideTimer}
+      className="relative w-full bg-black select-none"
+      style={{
+        aspectRatio: fullscreen ? undefined : '16/9',
+        borderRadius: fullscreen ? 0 : '0.75rem',
+        overflow: 'hidden',
+        border: fullscreen ? 'none' : '1px solid rgba(255,255,255,0.1)',
+        cursor: showControls ? 'default' : 'none',
+      }}
+      onMouseMove={showControlsNow}
       onMouseLeave={() => { if (playing) setShowControls(false); }}
-      style={{ cursor: showControls ? 'default' : 'none' }}
     >
-      <div
-        className="relative w-full aspect-video"
-        onClick={handleVideoClick}
-        onTouchStart={handleTouchStart}
-      >
-        <video
-          ref={videoRef}
-          src={resolvedUrl}
-          className="w-full h-full object-contain bg-black"
-          preload="metadata"
-          onPlay={() => { setPlaying(true); resetHideTimer(); }}
-          onPause={() => { setPlaying(false); setShowControls(true); }}
-          onTimeUpdate={() => {
-            const v = videoRef.current;
-            if (!v) return;
-            setCurrentTime(v.currentTime);
-            if (v.buffered.length > 0) setBuffered(v.buffered.end(v.buffered.length - 1));
-          }}
-          onLoadedMetadata={() => {
-            const v = videoRef.current;
-            if (!v) return;
-            setDuration(v.duration);
-            setLoading(false);
-          }}
-          onWaiting={() => setLoading(true)}
-          onCanPlay={() => setLoading(false)}
-          onError={() => { setLoading(false); setVideoError(true); }}
-          onVolumeChange={() => {
-            const v = videoRef.current;
-            if (!v) return;
-            setVolume(v.volume);
-            setMuted(v.muted);
-          }}
-        />
+      <video
+        ref={videoRef}
+        src={resolvedUrl}
+        className="absolute inset-0 w-full h-full object-contain bg-black"
+        preload="metadata"
+        onPlay={() => { setPlaying(true); scheduleHide(); }}
+        onPause={() => { setPlaying(false); setShowControls(true); if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current); }}
+        onTimeUpdate={() => {
+          const v = videoRef.current;
+          if (!v || isSeeking) return;
+          setCurrentTime(v.currentTime);
+          if (v.buffered.length > 0) setBuffered(v.buffered.end(v.buffered.length - 1));
+        }}
+        onLoadedMetadata={() => {
+          const v = videoRef.current;
+          if (!v) return;
+          setDuration(v.duration);
+          setLoading(false);
+        }}
+        onWaiting={() => setLoading(true)}
+        onCanPlay={() => setLoading(false)}
+        onError={() => { setLoading(false); setVideoError(true); }}
+        onVolumeChange={() => {
+          const v = videoRef.current;
+          if (!v) return;
+          setVolume(v.volume);
+          setMuted(v.muted);
+        }}
+      />
 
-        {loading && !videoError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10 pointer-events-none">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      {loading && !videoError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10 pointer-events-none">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+      )}
+
+      {videoError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-950 z-10">
+          <AlertCircle className="h-10 w-10 text-destructive" />
+          <p className="text-zinc-300 font-semibold">Erro ao reproduzir o vídeo</p>
+        </div>
+      )}
+
+      {!playing && !loading && !videoError && (
+        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+          <div className="h-20 w-20 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+            <Play className="h-9 w-9 fill-white text-white ml-1" />
           </div>
-        )}
+        </div>
+      )}
 
-        {videoError && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-950 z-10">
-            <AlertCircle className="h-10 w-10 text-destructive" />
-            <p className="text-zinc-300 font-semibold">Erro ao reproduzir o vídeo</p>
-          </div>
-        )}
-
-        {!playing && !loading && !videoError && (
-          <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-            <div className="h-20 w-20 rounded-full bg-black/60 backdrop-blur-sm border border-white/20 flex items-center justify-center">
-              <Play className="h-9 w-9 fill-white text-white ml-1" />
-            </div>
-          </div>
-        )}
-
-        {skipFeedback && (
-          <SkipAnimation key={skipFeedback.key} dir={skipFeedback.dir} />
-        )}
-      </div>
+      {skipFeedback && (
+        <SkipAnimation key={skipFeedback.key} dir={skipFeedback.dir} />
+      )}
 
       <div
-        className={`absolute bottom-0 left-0 right-0 z-20 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.85))' }}
+        className="absolute inset-0 z-10"
+        style={{ bottom: showControls ? '80px' : 0 }}
+        onClick={handleVideoAreaClick}
+        onTouchStart={handleVideoAreaTouch}
+      />
+
+      <div
+        className={`absolute bottom-0 left-0 right-0 z-20 transition-opacity duration-300 ${showControls || isSeeking ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.9) 40%)' }}
         onClick={e => e.stopPropagation()}
+        onTouchStart={e => e.stopPropagation()}
       >
         {title && (
-          <div className="px-4 pt-3 pb-1">
+          <div className="px-4 pt-4 pb-1">
             <p className="text-white text-sm font-semibold truncate drop-shadow">{title}</p>
           </div>
         )}
 
-        <div className="px-4 pb-1 relative h-4 flex items-center group/seek">
-          <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 h-1 rounded-full bg-white/20 overflow-hidden pointer-events-none">
+        <div className="px-3 pb-1 pt-2 relative flex items-center" style={{ height: '36px' }}>
+          <div
+            className="absolute rounded-full bg-white/20"
+            style={{ left: '12px', right: '12px', height: '3px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+          >
             <div className="h-full rounded-full bg-white/30" style={{ width: `${bufferedPercent}%` }} />
             <div className="absolute inset-y-0 left-0 h-full rounded-full bg-primary" style={{ width: `${progressPercent}%` }} />
           </div>
           <input
+            ref={seekRef}
             type="range"
             min={0}
             max={duration || 100}
             step={0.1}
             value={currentTime}
-            onChange={handleSeek}
-            className="w-full h-4 appearance-none bg-transparent cursor-pointer relative z-10"
-            style={{
-              WebkitAppearance: 'none',
-              background: 'transparent',
-            }}
+            onChange={handleSeekChange}
+            onTouchStart={handleSeekTouchStart}
+            onTouchEnd={handleSeekTouchEnd}
+            onMouseDown={handleSeekMouseDown}
+            onMouseUp={handleSeekMouseUp}
+            className="w-full cursor-pointer relative z-10 seek-range"
+            style={{ height: '36px', background: 'transparent', WebkitAppearance: 'none', appearance: 'none' }}
           />
         </div>
 
         <div className="px-3 pb-3 flex items-center gap-1">
           <button
             onClick={togglePlay}
-            className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors"
-            title={playing ? 'Pausar' : 'Reproduzir'}
+            className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors flex-shrink-0"
           >
             {playing ? <Pause className="h-5 w-5 fill-white" /> : <Play className="h-5 w-5 fill-white ml-0.5" />}
           </button>
 
           <button
             onClick={() => skip(-5)}
-            className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors"
-            title="Retroceder 5s"
+            className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors flex-shrink-0"
           >
             <RotateCcw className="h-4 w-4" />
           </button>
 
           <button
             onClick={() => skip(5)}
-            className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors"
-            title="Avançar 5s"
+            className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors flex-shrink-0"
           >
             <RotateCw className="h-4 w-4" />
           </button>
@@ -351,12 +391,11 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
           <div className="flex items-center gap-1 group/vol">
             <button
               onClick={toggleMute}
-              className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors"
-              title={muted ? 'Ativar som' : 'Mudo'}
+              className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors flex-shrink-0"
             >
               {muted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             </button>
-            <div className="w-0 overflow-hidden group-hover/vol:w-20 transition-all duration-200">
+            <div className="w-0 overflow-hidden group-hover/vol:w-20 transition-all duration-200 hidden sm:block">
               <input
                 type="range"
                 min={0}
@@ -369,7 +408,7 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
             </div>
           </div>
 
-          <span className="text-white/70 text-xs font-mono ml-1 select-none whitespace-nowrap">
+          <span className="text-white/70 text-xs font-mono ml-1 select-none whitespace-nowrap flex-shrink-0">
             {formatTime(currentTime)} / {formatTime(duration)}
           </span>
 
@@ -377,8 +416,7 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
 
           <button
             onClick={toggleFullscreen}
-            className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors"
-            title={fullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+            className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-white/10 text-white transition-colors flex-shrink-0"
           >
             {fullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
           </button>
@@ -386,22 +424,33 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
       </div>
 
       <style>{`
-        input[type=range]::-webkit-slider-thumb {
+        .seek-range::-webkit-slider-thumb {
           -webkit-appearance: none;
-          width: 14px;
-          height: 14px;
+          width: 16px;
+          height: 16px;
           border-radius: 50%;
           background: white;
           cursor: pointer;
-          box-shadow: 0 0 3px rgba(0,0,0,0.5);
+          box-shadow: 0 0 4px rgba(0,0,0,0.6);
         }
-        input[type=range]::-moz-range-thumb {
-          width: 14px;
-          height: 14px;
+        .seek-range::-moz-range-thumb {
+          width: 16px;
+          height: 16px;
           border-radius: 50%;
           background: white;
           cursor: pointer;
           border: none;
+          box-shadow: 0 0 4px rgba(0,0,0,0.6);
+        }
+        @media (max-width: 640px) {
+          .seek-range::-webkit-slider-thumb {
+            width: 20px;
+            height: 20px;
+          }
+          .seek-range::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+          }
         }
       `}</style>
     </div>
@@ -420,14 +469,18 @@ function SkipAnimation({ dir }: { dir: 'left' | 'right' }) {
   return (
     <div
       className={`absolute top-0 bottom-0 ${dir === 'left' ? 'left-0' : 'right-0'} w-1/3 flex items-center justify-center z-20 pointer-events-none`}
-      style={{ background: dir === 'left' ? 'linear-gradient(to right, rgba(255,255,255,0.08), transparent)' : 'linear-gradient(to left, rgba(255,255,255,0.08), transparent)', borderRadius: dir === 'left' ? '12px 0 0 12px' : '0 12px 12px 0' }}
+      style={{
+        background: dir === 'left'
+          ? 'linear-gradient(to right, rgba(255,255,255,0.08), transparent)'
+          : 'linear-gradient(to left, rgba(255,255,255,0.08), transparent)',
+        borderRadius: dir === 'left' ? '12px 0 0 12px' : '0 12px 12px 0',
+      }}
     >
       <div className="flex flex-col items-center gap-1 animate-pulse">
-        {dir === 'left' ? (
-          <RotateCcw className="h-7 w-7 text-white drop-shadow" />
-        ) : (
-          <RotateCw className="h-7 w-7 text-white drop-shadow" />
-        )}
+        {dir === 'left'
+          ? <RotateCcw className="h-7 w-7 text-white drop-shadow" />
+          : <RotateCw className="h-7 w-7 text-white drop-shadow" />
+        }
         <span className="text-white text-xs font-bold drop-shadow">{dir === 'left' ? '-5s' : '+5s'}</span>
       </div>
     </div>
