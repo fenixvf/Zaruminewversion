@@ -1,18 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout';
 import { ProtectedRoute } from '@/components/protected-route';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { 
-  useGetSiteStats, 
-  useListWorks, 
-  useCreateWork, 
+import {
+  useGetSiteStats,
+  useListWorks,
+  useCreateWork,
   useDeleteWork,
   useUpdateWork,
   useListEpisodes,
@@ -25,55 +24,677 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Search, Trash2, Edit, Plus, Tv, Film, Eye, ListVideo, X, Save, Link } from 'lucide-react';
+import { Loader2, Search, Trash2, Edit, Plus, Tv, Film, Eye, ListVideo, Save, Link, Images, ChevronLeft } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import type { Episode } from '@workspace/api-client-react';
+import type { Episode, Work } from '@workspace/api-client-react';
+
+const TMDB_IMG = 'https://image.tmdb.org/t/p';
+
+function tmdbPoster(path: string | null | undefined, size = 'w342') {
+  return path ? `${TMDB_IMG}/${size}${path}` : '';
+}
+function tmdbBackdrop(path: string | null | undefined, size = 'w780') {
+  return path ? `${TMDB_IMG}/${size}${path}` : '';
+}
+function tmdbStill(path: string | null | undefined, size = 'w300') {
+  return path ? `${TMDB_IMG}/${size}${path}` : '';
+}
+
+async function fetchTmdb(path: string) {
+  const apiKey = import.meta.env.VITE_TMDB_API_KEY;
+  if (!apiKey) throw new Error('VITE_TMDB_API_KEY não configurada.');
+  const res = await fetch(`https://api.themoviedb.org/3${path}?api_key=${apiKey}&language=pt-BR`);
+  if (!res.ok) throw new Error(`TMDB erro ${res.status}`);
+  return res.json();
+}
 
 function DashboardTab() {
   const { data: stats, isLoading } = useGetSiteStats();
-
   if (isLoading) return <div className="py-10 flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!stats) return null;
-
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card className="bg-zinc-900/50 border-white/10">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-zinc-400">Total de Obras</CardTitle>
-          <Tv className="h-4 w-4 text-zinc-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-white">{stats.totalWorks}</div>
-        </CardContent>
-      </Card>
-      <Card className="bg-zinc-900/50 border-white/10">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-zinc-400">Episódios</CardTitle>
-          <ListVideo className="h-4 w-4 text-zinc-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-white">{stats.totalEpisodes}</div>
-        </CardContent>
-      </Card>
-      <Card className="bg-zinc-900/50 border-white/10">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-zinc-400">Visualizações Totais</CardTitle>
-          <Eye className="h-4 w-4 text-zinc-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-white">{stats.totalViews.toLocaleString()}</div>
-        </CardContent>
-      </Card>
-      <Card className="bg-zinc-900/50 border-white/10">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-zinc-400">Em Lançamento</CardTitle>
-          <Tv className="h-4 w-4 text-green-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-white">{stats.ongoingCount || 0}</div>
-        </CardContent>
-      </Card>
+      {[
+        { label: 'Total de Obras', value: stats.totalWorks, icon: <Tv className="h-4 w-4 text-zinc-500" /> },
+        { label: 'Episódios', value: stats.totalEpisodes, icon: <ListVideo className="h-4 w-4 text-zinc-500" /> },
+        { label: 'Visualizações', value: stats.totalViews.toLocaleString(), icon: <Eye className="h-4 w-4 text-zinc-500" /> },
+        { label: 'Em Lançamento', value: stats.ongoingCount || 0, icon: <Tv className="h-4 w-4 text-green-500" /> },
+      ].map(({ label, value, icon }) => (
+        <Card key={label} className="bg-zinc-900/50 border-white/10">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-zinc-400">{label}</CardTitle>
+            {icon}
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-white">{value}</div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
+  );
+}
+
+function EditWorkDialog({ work, onUpdated }: { work: Work; onUpdated: () => void }) {
+  const [open, setOpen] = useState(false);
+  const updateWork = useUpdateWork();
+  const { toast } = useToast();
+
+  const [form, setForm] = useState({
+    title: work.title,
+    synopsis: work.synopsis || '',
+    status: work.status,
+    isFeatured: work.isFeatured ?? false,
+    genres: (work.genres ?? []).join(', '),
+    customThumbnailUrl: work.customThumbnailUrl || '',
+    customBannerUrl: work.customBannerUrl || '',
+    posterPath: work.posterPath || '',
+    backdropPath: work.backdropPath || '',
+    rating: work.rating != null ? String(work.rating) : '',
+  });
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        title: work.title,
+        synopsis: work.synopsis || '',
+        status: work.status,
+        isFeatured: work.isFeatured ?? false,
+        genres: (work.genres ?? []).join(', '),
+        customThumbnailUrl: work.customThumbnailUrl || '',
+        customBannerUrl: work.customBannerUrl || '',
+        posterPath: work.posterPath || '',
+        backdropPath: work.backdropPath || '',
+        rating: work.rating != null ? String(work.rating) : '',
+      });
+    }
+  }, [open, work]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateWork.mutateAsync({
+        id: work.id,
+        data: {
+          title: form.title,
+          synopsis: form.synopsis || null,
+          status: form.status as any,
+          isFeatured: form.isFeatured,
+          genres: form.genres.split(',').map(s => s.trim()).filter(Boolean),
+          customThumbnailUrl: form.customThumbnailUrl || null,
+          customBannerUrl: form.customBannerUrl || null,
+          posterPath: form.posterPath || null,
+          backdropPath: form.backdropPath || null,
+          rating: form.rating ? parseFloat(form.rating) : null,
+        },
+      });
+      toast({ title: 'Sucesso', description: 'Obra atualizada.' });
+      onUpdated();
+      setOpen(false);
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao atualizar obra.', variant: 'destructive' });
+    }
+  };
+
+  const thumbnailSrc = form.customThumbnailUrl || tmdbPoster(form.posterPath);
+  const bannerSrc = form.customBannerUrl || tmdbBackdrop(form.backdropPath);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-primary hover:bg-primary/10" title="Editar obra">
+          <Edit className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="bg-zinc-950 border-white/10 max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-xl text-white flex items-center gap-2">
+            <Edit className="h-5 w-5 text-primary" /> Editar — {work.title}
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSave} className="space-y-5 mt-4">
+          <div className="grid md:grid-cols-2 gap-5">
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-zinc-400">Título *</Label>
+                <Input required value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="bg-zinc-900 border-white/10" />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-zinc-400">Sinopse</Label>
+                <textarea
+                  value={form.synopsis}
+                  onChange={e => setForm(p => ({ ...p, synopsis: e.target.value }))}
+                  rows={4}
+                  className="w-full rounded-md border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-400">Status</Label>
+                  <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
+                    <SelectTrigger className="bg-zinc-900 border-white/10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ongoing">Em Lançamento</SelectItem>
+                      <SelectItem value="completed">Completo</SelectItem>
+                      <SelectItem value="upcoming">Em Breve</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-400">Nota (0–10)</Label>
+                  <Input type="number" step="0.1" min="0" max="10" value={form.rating} onChange={e => setForm(p => ({ ...p, rating: e.target.value }))} className="bg-zinc-900 border-white/10" />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-3">
+                <Label className="text-white cursor-pointer">Destaque na home</Label>
+                <Switch checked={form.isFeatured} onCheckedChange={v => setForm(p => ({ ...p, isFeatured: v }))} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-zinc-400">Gêneros (separados por vírgula)</Label>
+                <Input value={form.genres} onChange={e => setForm(p => ({ ...p, genres: e.target.value }))} className="bg-zinc-900 border-white/10" />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-zinc-400">Thumbnail Personalizada (URL)</Label>
+                <Input value={form.customThumbnailUrl} onChange={e => setForm(p => ({ ...p, customThumbnailUrl: e.target.value }))} placeholder="Deixe em branco para usar TMDB" className="bg-zinc-900 border-white/10" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-zinc-400">Banner Personalizado (URL)</Label>
+                <Input value={form.customBannerUrl} onChange={e => setForm(p => ({ ...p, customBannerUrl: e.target.value }))} placeholder="Deixe em branco para usar TMDB" className="bg-zinc-900 border-white/10" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-zinc-400">Poster Path (TMDB, ex: /abc.jpg)</Label>
+                <Input value={form.posterPath} onChange={e => setForm(p => ({ ...p, posterPath: e.target.value }))} className="bg-zinc-900 border-white/10 font-mono text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-zinc-400">Backdrop Path (TMDB, ex: /xyz.jpg)</Label>
+                <Input value={form.backdropPath} onChange={e => setForm(p => ({ ...p, backdropPath: e.target.value }))} className="bg-zinc-900 border-white/10 font-mono text-xs" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                {thumbnailSrc && (
+                  <div>
+                    <p className="text-xs text-zinc-500 mb-1">Thumbnail</p>
+                    <img src={thumbnailSrc} alt="" className="w-full rounded-md object-cover h-32 bg-zinc-800" />
+                  </div>
+                )}
+                {bannerSrc && (
+                  <div>
+                    <p className="text-xs text-zinc-500 mb-1">Banner</p>
+                    <img src={bannerSrc} alt="" className="w-full rounded-md object-cover h-32 bg-zinc-800" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1 border-white/10 text-zinc-400 hover:text-white">
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={updateWork.isPending} className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold">
+              {updateWork.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+              Salvar Alterações
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TmdbEpisodePicker({ tmdbId, episodes, onApply }: {
+  tmdbId: number;
+  episodes: Episode[];
+  onApply: (episodeNumber: number, seasonNumber: number, thumbnailUrl: string, title: string, synopsis: string) => void;
+}) {
+  const [seasons, setSeasons] = useState<any[]>([]);
+  const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
+  const [seasonEpisodes, setSeasonEpisodes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingEps, setLoadingEps] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    setLoading(true);
+    fetchTmdb(`/tv/${tmdbId}`)
+      .then(data => {
+        const list = (data.seasons || []).filter((s: any) => s.season_number > 0);
+        setSeasons(list);
+        if (list.length > 0) setSelectedSeason(list[0].season_number);
+      })
+      .catch(err => toast({ title: 'TMDB', description: err.message, variant: 'destructive' }))
+      .finally(() => setLoading(false));
+  }, [tmdbId]);
+
+  useEffect(() => {
+    if (selectedSeason == null) return;
+    setLoadingEps(true);
+    setSeasonEpisodes([]);
+    fetchTmdb(`/tv/${tmdbId}/season/${selectedSeason}`)
+      .then(data => setSeasonEpisodes(data.episodes || []))
+      .catch(err => toast({ title: 'TMDB', description: err.message, variant: 'destructive' }))
+      .finally(() => setLoadingEps(false));
+  }, [selectedSeason, tmdbId]);
+
+  const existingNumbers = new Set(episodes.map(e => e.episodeNumber));
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-12">
+      <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+      <span className="text-zinc-400 text-sm">Carregando temporadas...</span>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      {seasons.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {seasons.map((s: any) => (
+            <button
+              key={s.season_number}
+              onClick={() => setSelectedSeason(s.season_number)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${selectedSeason === s.season_number ? 'bg-primary text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'}`}
+            >
+              T{s.season_number} — {s.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {loadingEps ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-5 w-5 animate-spin text-primary mr-2" />
+          <span className="text-zinc-400 text-sm">Carregando episódios...</span>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto pr-1">
+          {seasonEpisodes.map((ep: any) => {
+            const stillUrl = ep.still_path ? tmdbStill(ep.still_path, 'w300') : null;
+            const alreadyLinked = existingNumbers.has(ep.episode_number);
+            return (
+              <div key={ep.id} className={`rounded-lg overflow-hidden border transition-colors ${alreadyLinked ? 'border-primary/40 bg-primary/5' : 'border-white/10 bg-zinc-900/60'}`}>
+                {stillUrl ? (
+                  <img src={stillUrl} alt={ep.name} className="w-full aspect-video object-cover" />
+                ) : (
+                  <div className="w-full aspect-video bg-zinc-800 flex items-center justify-center">
+                    <Film className="h-6 w-6 text-zinc-600" />
+                  </div>
+                )}
+                <div className="p-2 space-y-1">
+                  <div className="flex items-start justify-between gap-1">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-zinc-300">EP {ep.episode_number}</p>
+                      <p className="text-xs text-zinc-400 truncate leading-tight">{ep.name}</p>
+                    </div>
+                    {alreadyLinked && (
+                      <span className="text-[10px] text-primary font-bold bg-primary/10 px-1 rounded shrink-0">✓</span>
+                    )}
+                  </div>
+                  {stillUrl && (
+                    <Button
+                      size="sm"
+                      className="w-full h-7 text-xs bg-primary/90 hover:bg-primary text-white"
+                      onClick={() => onApply(
+                        ep.episode_number,
+                        selectedSeason!,
+                        stillUrl,
+                        ep.name,
+                        ep.overview || ''
+                      )}
+                    >
+                      {alreadyLinked ? 'Atualizar thumbnail' : 'Aplicar thumbnail'}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EpisodesManager({ work }: { work: Work }) {
+  const { data: episodes, isLoading } = useListEpisodes(work.id);
+  const addEpisode = useAddEpisode();
+  const updateEpisode = useUpdateEpisode();
+  const deleteEpisode = useDeleteEpisode();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const [panel, setPanel] = useState<'list' | 'add' | 'edit' | 'tmdb'>('list');
+  const [editingEpisode, setEditingEpisode] = useState<Episode | null>(null);
+
+  const [addForm, setAddForm] = useState({
+    episodeNumber: '', seasonNumber: '', title: '', duration: '', customThumbnailUrl: '', videoSlug: '',
+  });
+
+  const [editForm, setEditForm] = useState({
+    episodeNumber: '', title: '', duration: '', customThumbnailUrl: '', videoSlug: '',
+  });
+
+  const openEdit = (ep: Episode) => {
+    setEditingEpisode(ep);
+    setEditForm({
+      episodeNumber: String(ep.episodeNumber),
+      title: ep.title,
+      duration: ep.duration ? String(ep.duration) : '',
+      customThumbnailUrl: ep.customThumbnailUrl || '',
+      videoSlug: ep.videoSlug || '',
+    });
+    setPanel('edit');
+  };
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await addEpisode.mutateAsync({
+        id: work.id,
+        data: {
+          episodeNumber: parseInt(addForm.episodeNumber, 10),
+          seasonNumber: addForm.seasonNumber ? parseInt(addForm.seasonNumber, 10) : null,
+          title: addForm.title || `Episódio ${addForm.episodeNumber}`,
+          duration: addForm.duration ? parseInt(addForm.duration, 10) : null,
+          customThumbnailUrl: addForm.customThumbnailUrl || null,
+          videoSlug: addForm.videoSlug || null,
+        }
+      });
+      toast({ title: 'Sucesso', description: 'Episódio adicionado.' });
+      queryClient.invalidateQueries({ queryKey: getListEpisodesQueryKey(work.id) });
+      queryClient.invalidateQueries({ queryKey: getGetSiteStatsQueryKey() });
+      setAddForm({ episodeNumber: '', seasonNumber: '', title: '', duration: '', customThumbnailUrl: '', videoSlug: '' });
+      setPanel('list');
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao adicionar episódio.', variant: 'destructive' });
+    }
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEpisode) return;
+    try {
+      await updateEpisode.mutateAsync({
+        workId: work.id,
+        episodeId: editingEpisode.id,
+        data: {
+          episodeNumber: parseInt(editForm.episodeNumber, 10),
+          title: editForm.title,
+          duration: editForm.duration ? parseInt(editForm.duration, 10) : null,
+          customThumbnailUrl: editForm.customThumbnailUrl || null,
+          videoSlug: editForm.videoSlug || null,
+        }
+      });
+      toast({ title: 'Sucesso', description: 'Episódio atualizado.' });
+      queryClient.invalidateQueries({ queryKey: getListEpisodesQueryKey(work.id) });
+      setPanel('list');
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao atualizar episódio.', variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async (ep: Episode) => {
+    if (!confirm(`Remover "${ep.title}"?`)) return;
+    try {
+      await deleteEpisode.mutateAsync({ workId: work.id, episodeId: ep.id });
+      toast({ title: 'Removido', description: `${ep.title} foi removido.` });
+      queryClient.invalidateQueries({ queryKey: getListEpisodesQueryKey(work.id) });
+      queryClient.invalidateQueries({ queryKey: getGetSiteStatsQueryKey() });
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao remover episódio.', variant: 'destructive' });
+    }
+  };
+
+  const handleTmdbApply = async (
+    episodeNumber: number,
+    seasonNumber: number,
+    thumbnailUrl: string,
+    title: string,
+    synopsis: string
+  ) => {
+    const existing = episodes?.find(e => e.episodeNumber === episodeNumber && (e.seasonNumber === seasonNumber || e.seasonNumber == null));
+    if (existing) {
+      try {
+        await updateEpisode.mutateAsync({
+          workId: work.id,
+          episodeId: existing.id,
+          data: { customThumbnailUrl: thumbnailUrl }
+        });
+        toast({ title: 'Thumbnail aplicada', description: `EP ${episodeNumber} — ${existing.title}` });
+        queryClient.invalidateQueries({ queryKey: getListEpisodesQueryKey(work.id) });
+      } catch {
+        toast({ title: 'Erro', description: 'Falha ao aplicar thumbnail.', variant: 'destructive' });
+      }
+    } else {
+      setAddForm({
+        episodeNumber: String(episodeNumber),
+        seasonNumber: String(seasonNumber),
+        title,
+        duration: '',
+        customThumbnailUrl: thumbnailUrl,
+        videoSlug: '',
+      });
+      toast({ title: 'Dados preenchidos', description: 'Complete o URL do vídeo e salve o episódio.' });
+      setPanel('add');
+    }
+  };
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="bg-white/5 border-white/10 text-zinc-300 hover:text-white">
+          <ListVideo className="h-4 w-4 mr-2" />
+          Episódios
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="bg-zinc-950 border-white/10 max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-xl text-white">
+            {work.title}
+            <span className="text-sm font-normal text-zinc-500 ml-2">{episodes?.length ?? 0} episódios</span>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="flex gap-2 mt-3 border-b border-white/10 pb-3">
+          <Button size="sm" variant={panel === 'list' ? 'default' : 'outline'} onClick={() => setPanel('list')}
+            className={panel === 'list' ? 'bg-white/10 text-white' : 'border-white/10 text-zinc-400 hover:text-white'}>
+            Lista
+          </Button>
+          <Button size="sm" variant={panel === 'add' ? 'default' : 'outline'} onClick={() => setPanel('add')}
+            className={panel === 'add' ? 'bg-primary text-white' : 'border-white/10 text-zinc-400 hover:text-white'}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar
+          </Button>
+          {work.type === 'tv' && (
+            <Button size="sm" variant={panel === 'tmdb' ? 'default' : 'outline'} onClick={() => setPanel('tmdb')}
+              className={panel === 'tmdb' ? 'bg-blue-600 text-white' : 'border-white/10 text-zinc-400 hover:text-white'}>
+              <Images className="h-3.5 w-3.5 mr-1" /> Thumbnails TMDB
+            </Button>
+          )}
+        </div>
+
+        {panel === 'list' && (
+          <div className="space-y-2 mt-3">
+            {isLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            ) : episodes?.length === 0 ? (
+              <div className="text-center py-10 text-zinc-500">
+                <ListVideo className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">Nenhum episódio cadastrado.</p>
+                <Button size="sm" className="mt-3 bg-primary/80 hover:bg-primary text-white" onClick={() => setPanel('add')}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar primeiro episódio
+                </Button>
+              </div>
+            ) : (
+              episodes?.map(ep => (
+                <div key={ep.id} className="flex items-center gap-3 p-3 rounded-lg border border-white/5 bg-zinc-900/50 hover:border-white/10 transition-colors">
+                  {ep.customThumbnailUrl ? (
+                    <img src={ep.customThumbnailUrl} alt="" className="w-20 h-[45px] rounded object-cover bg-zinc-800 shrink-0" />
+                  ) : (
+                    <div className="w-20 h-[45px] rounded bg-zinc-800 flex items-center justify-center shrink-0">
+                      <Film className="h-4 w-4 text-zinc-600" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">
+                      {ep.seasonNumber ? `T${ep.seasonNumber} · ` : ''}EP {ep.episodeNumber} — {ep.title}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {ep.duration && <span className="text-xs text-zinc-500">{ep.duration}min</span>}
+                      {ep.videoSlug ? (
+                        <span className="text-xs text-green-400">✓ Vídeo</span>
+                      ) : (
+                        <span className="text-xs text-red-400/70">Sem vídeo</span>
+                      )}
+                      {ep.customThumbnailUrl && (
+                        <span className="text-xs text-blue-400">✓ Thumb</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-primary" onClick={() => openEdit(ep)}>
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-destructive" onClick={() => handleDelete(ep)} disabled={deleteEpisode.isPending}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {panel === 'add' && (
+          <div className="mt-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Button variant="ghost" size="sm" onClick={() => setPanel('list')} className="text-zinc-400 hover:text-white -ml-2">
+                <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
+              </Button>
+              <span className="text-white font-semibold">Novo Episódio</span>
+            </div>
+            <form onSubmit={handleAdd} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-400 text-xs">Temporada</Label>
+                  <Input type="number" value={addForm.seasonNumber} onChange={e => setAddForm(p => ({ ...p, seasonNumber: e.target.value }))} placeholder="Ex: 1" className="bg-zinc-900 border-white/10 h-9" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-400 text-xs">Nº do Episódio *</Label>
+                  <Input required type="number" value={addForm.episodeNumber} onChange={e => setAddForm(p => ({ ...p, episodeNumber: e.target.value }))} className="bg-zinc-900 border-white/10 h-9" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-400 text-xs">Título</Label>
+                  <Input value={addForm.title} onChange={e => setAddForm(p => ({ ...p, title: e.target.value }))} placeholder="Opcional" className="bg-zinc-900 border-white/10 h-9" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-400 text-xs">Duração (min)</Label>
+                  <Input type="number" value={addForm.duration} onChange={e => setAddForm(p => ({ ...p, duration: e.target.value }))} placeholder="Opcional" className="bg-zinc-900 border-white/10 h-9" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-zinc-400 text-xs">Thumbnail (URL)</Label>
+                <div className="flex gap-2">
+                  <Input value={addForm.customThumbnailUrl} onChange={e => setAddForm(p => ({ ...p, customThumbnailUrl: e.target.value }))} placeholder="Cole URL ou use Thumbnails TMDB" className="bg-zinc-900 border-white/10 h-9 flex-1" />
+                  {addForm.customThumbnailUrl && (
+                    <img src={addForm.customThumbnailUrl} alt="" className="h-9 w-16 object-cover rounded border border-white/10 shrink-0" />
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-zinc-300 text-xs font-semibold flex items-center gap-1.5">
+                  <Link className="h-3.5 w-3.5 text-primary" /> URL do Servidor (Serve)
+                </Label>
+                <Input value={addForm.videoSlug} onChange={e => setAddForm(p => ({ ...p, videoSlug: e.target.value }))} placeholder="https://...replit.dev/api/links/1/serve" className="bg-zinc-900 border-primary/30 focus-visible:ring-primary font-mono text-xs h-9" />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="outline" onClick={() => setPanel('list')} className="flex-1 border-white/10 text-zinc-400 h-9">Cancelar</Button>
+                <Button type="submit" disabled={addEpisode.isPending} className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold h-9">
+                  {addEpisode.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Plus className="h-4 w-4 mr-1" />}
+                  Adicionar
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {panel === 'edit' && editingEpisode && (
+          <div className="mt-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Button variant="ghost" size="sm" onClick={() => setPanel('list')} className="text-zinc-400 hover:text-white -ml-2">
+                <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
+              </Button>
+              <span className="text-white font-semibold">Editando EP {editingEpisode.episodeNumber} — {editingEpisode.title}</span>
+            </div>
+            <form onSubmit={handleEdit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-400 text-xs">Nº do Episódio *</Label>
+                  <Input required type="number" value={editForm.episodeNumber} onChange={e => setEditForm(p => ({ ...p, episodeNumber: e.target.value }))} className="bg-zinc-900 border-white/10 h-9" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-zinc-400 text-xs">Duração (min)</Label>
+                  <Input type="number" value={editForm.duration} onChange={e => setEditForm(p => ({ ...p, duration: e.target.value }))} placeholder="Opcional" className="bg-zinc-900 border-white/10 h-9" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-zinc-400 text-xs">Título *</Label>
+                <Input required value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} className="bg-zinc-900 border-white/10 h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-zinc-400 text-xs">Thumbnail (URL)</Label>
+                <div className="flex gap-2">
+                  <Input value={editForm.customThumbnailUrl} onChange={e => setEditForm(p => ({ ...p, customThumbnailUrl: e.target.value }))} placeholder="Cole URL ou use Thumbnails TMDB" className="bg-zinc-900 border-white/10 h-9 flex-1" />
+                  {editForm.customThumbnailUrl && (
+                    <img src={editForm.customThumbnailUrl} alt="" className="h-9 w-16 object-cover rounded border border-white/10 shrink-0" />
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-zinc-300 text-xs font-semibold flex items-center gap-1.5">
+                  <Link className="h-3.5 w-3.5 text-primary" /> URL do Servidor (Serve)
+                </Label>
+                <Input value={editForm.videoSlug} onChange={e => setEditForm(p => ({ ...p, videoSlug: e.target.value }))} placeholder="https://...replit.dev/api/links/1/serve" className="bg-zinc-900 border-primary/30 focus-visible:ring-primary font-mono text-xs h-9" />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="outline" onClick={() => setPanel('list')} className="flex-1 border-white/10 text-zinc-400 h-9">Cancelar</Button>
+                <Button type="submit" disabled={updateEpisode.isPending} className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold h-9">
+                  {updateEpisode.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                  Salvar
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {panel === 'tmdb' && (
+          <div className="mt-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Button variant="ghost" size="sm" onClick={() => setPanel('list')} className="text-zinc-400 hover:text-white -ml-2">
+                <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
+              </Button>
+              <span className="text-white font-semibold">Thumbnails do TMDB</span>
+              <span className="text-xs text-zinc-500 ml-1">— clique para aplicar na obra ou preencher o formulário</span>
+            </div>
+            <TmdbEpisodePicker
+              tmdbId={work.tmdbId}
+              episodes={episodes || []}
+              onApply={handleTmdbApply}
+            />
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -86,41 +707,24 @@ function AddWorkTab() {
   const [tmdbId, setTmdbId] = useState('');
   const [loadingTmdb, setLoadingTmdb] = useState(false);
   const [preview, setPreview] = useState<any>(null);
-
-  const [formData, setFormData] = useState({
-    customThumbnailUrl: '',
-    customBannerUrl: '',
-    status: 'completed',
-    isFeatured: false,
-    genres: ''
-  });
+  const [formData, setFormData] = useState({ customThumbnailUrl: '', customBannerUrl: '', status: 'completed', isFeatured: false, genres: '' });
 
   const searchTmdb = async () => {
     if (!tmdbId) return;
     setLoadingTmdb(true);
     setPreview(null);
     try {
-      const apiKey = import.meta.env.VITE_TMDB_API_KEY;
-      if (!apiKey) {
-        toast({ title: 'Erro', description: 'VITE_TMDB_API_KEY não configurada.', variant: 'destructive' });
-        return;
-      }
-      
-      const res = await fetch(`https://api.themoviedb.org/3/${tmdbType}/${tmdbId}?api_key=${apiKey}&language=pt-BR`);
-      if (!res.ok) throw new Error('Não encontrado no TMDB');
-      const data = await res.json();
-      
+      const data = await fetchTmdb(`/${tmdbType}/${tmdbId}`);
       setPreview({
         title: data.name || data.title,
         originalTitle: data.original_name || data.original_title,
         synopsis: data.overview,
         posterPath: data.poster_path,
         backdropPath: data.backdrop_path,
-        releaseYear: data.first_air_date ? parseInt(data.first_air_date.substring(0,4)) : data.release_date ? parseInt(data.release_date.substring(0,4)) : null,
+        releaseYear: data.first_air_date ? parseInt(data.first_air_date.substring(0, 4)) : data.release_date ? parseInt(data.release_date.substring(0, 4)) : null,
         rating: data.vote_average,
         genres: data.genres?.map((g: any) => g.name) || [],
       });
-      
       setFormData(prev => ({ ...prev, genres: data.genres?.map((g: any) => g.name).join(', ') || '' }));
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
@@ -131,7 +735,6 @@ function AddWorkTab() {
 
   const handleCreate = async () => {
     if (!preview) return;
-    
     try {
       await createWork.mutateAsync({
         data: {
@@ -151,13 +754,12 @@ function AddWorkTab() {
           isFeatured: formData.isFeatured
         }
       });
-      
       toast({ title: 'Sucesso', description: 'Obra adicionada com sucesso.' });
       queryClient.invalidateQueries({ queryKey: getListWorksQueryKey() });
       queryClient.invalidateQueries({ queryKey: getGetSiteStatsQueryKey() });
       setPreview(null);
       setTmdbId('');
-    } catch (err: any) {
+    } catch {
       toast({ title: 'Erro', description: 'Falha ao adicionar obra.', variant: 'destructive' });
     }
   };
@@ -166,17 +768,13 @@ function AddWorkTab() {
     <div className="grid md:grid-cols-2 gap-8">
       <div className="space-y-6">
         <Card className="bg-zinc-900/50 border-white/10">
-          <CardHeader>
-            <CardTitle className="text-white">Buscar no TMDB</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-white">Buscar no TMDB</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-zinc-400">Tipo</Label>
                 <Select value={tmdbType} onValueChange={(v: 'tv' | 'movie') => setTmdbType(v)}>
-                  <SelectTrigger className="bg-white/5 border-white/10">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="tv">Série (TV)</SelectItem>
                     <SelectItem value="movie">Filme</SelectItem>
@@ -186,26 +784,18 @@ function AddWorkTab() {
               <div className="space-y-2">
                 <Label className="text-zinc-400">TMDB ID</Label>
                 <div className="flex gap-2">
-                  <Input 
-                    value={tmdbId} 
-                    onChange={e => setTmdbId(e.target.value)} 
-                    placeholder="Ex: 37854" 
-                    className="bg-white/5 border-white/10"
-                  />
+                  <Input value={tmdbId} onChange={e => setTmdbId(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchTmdb()} placeholder="Ex: 37854" className="bg-white/5 border-white/10" />
                   <Button onClick={searchTmdb} disabled={loadingTmdb} className="bg-white/10 hover:bg-white/20 text-white">
                     {loadingTmdb ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>
             </div>
-            
             <div className="pt-4 space-y-4 border-t border-white/10">
               <div className="space-y-2">
                 <Label className="text-zinc-400">Status</Label>
-                <Select value={formData.status} onValueChange={v => setFormData(prev => ({ ...prev, status: v }))}>
-                  <SelectTrigger className="bg-white/5 border-white/10">
-                    <SelectValue />
-                  </SelectTrigger>
+                <Select value={formData.status} onValueChange={v => setFormData(p => ({ ...p, status: v }))}>
+                  <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ongoing">Em Lançamento</SelectItem>
                     <SelectItem value="completed">Completo</SelectItem>
@@ -214,26 +804,25 @@ function AddWorkTab() {
                 </Select>
               </div>
               <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-4">
-                <div className="space-y-0.5">
+                <div>
                   <Label className="text-base text-white">Destaque</Label>
                   <p className="text-sm text-zinc-500">Mostrar no banner da página inicial</p>
                 </div>
-                <Switch checked={formData.isFeatured} onCheckedChange={v => setFormData(prev => ({ ...prev, isFeatured: v }))} />
+                <Switch checked={formData.isFeatured} onCheckedChange={v => setFormData(p => ({ ...p, isFeatured: v }))} />
               </div>
               <div className="space-y-2">
                 <Label className="text-zinc-400">Thumbnail Personalizada (URL)</Label>
-                <Input value={formData.customThumbnailUrl} onChange={e => setFormData(prev => ({ ...prev, customThumbnailUrl: e.target.value }))} placeholder="Deixe em branco para usar TMDB" className="bg-white/5 border-white/10" />
+                <Input value={formData.customThumbnailUrl} onChange={e => setFormData(p => ({ ...p, customThumbnailUrl: e.target.value }))} placeholder="Deixe em branco para usar TMDB" className="bg-white/5 border-white/10" />
               </div>
               <div className="space-y-2">
                 <Label className="text-zinc-400">Banner Personalizado (URL)</Label>
-                <Input value={formData.customBannerUrl} onChange={e => setFormData(prev => ({ ...prev, customBannerUrl: e.target.value }))} placeholder="Deixe em branco para usar TMDB" className="bg-white/5 border-white/10" />
+                <Input value={formData.customBannerUrl} onChange={e => setFormData(p => ({ ...p, customBannerUrl: e.target.value }))} placeholder="Deixe em branco para usar TMDB" className="bg-white/5 border-white/10" />
               </div>
               <div className="space-y-2">
                 <Label className="text-zinc-400">Gêneros (separados por vírgula)</Label>
-                <Input value={formData.genres} onChange={e => setFormData(prev => ({ ...prev, genres: e.target.value }))} className="bg-white/5 border-white/10" />
+                <Input value={formData.genres} onChange={e => setFormData(p => ({ ...p, genres: e.target.value }))} className="bg-white/5 border-white/10" />
               </div>
             </div>
-            
             <Button onClick={handleCreate} disabled={!preview || createWork.isPending} className="w-full bg-primary hover:bg-primary/90 text-white font-bold mt-4">
               {createWork.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Plus className="h-5 w-5 mr-2" />}
               Adicionar ao Catálogo
@@ -241,37 +830,24 @@ function AddWorkTab() {
           </CardContent>
         </Card>
       </div>
-
       <div>
         {preview ? (
           <Card className="bg-zinc-900/50 border-white/10 overflow-hidden sticky top-24">
             <div className="aspect-video w-full relative">
-              <img 
-                src={formData.customBannerUrl || (preview.backdropPath ? `https://image.tmdb.org/t/p/w780${preview.backdropPath}` : '')} 
-                className="w-full h-full object-cover"
-                alt="Banner"
-              />
+              <img src={formData.customBannerUrl || tmdbBackdrop(preview.backdropPath)} className="w-full h-full object-cover" alt="Banner" />
               <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent" />
             </div>
             <CardContent className="relative -mt-16 flex gap-4">
-              <img 
-                src={formData.customThumbnailUrl || (preview.posterPath ? `https://image.tmdb.org/t/p/w342${preview.posterPath}` : '')} 
-                className="w-24 h-36 rounded-md object-cover border-2 border-zinc-800 shadow-xl bg-zinc-800"
-                alt="Poster"
-              />
+              <img src={formData.customThumbnailUrl || tmdbPoster(preview.posterPath)} className="w-24 h-36 rounded-md object-cover border-2 border-zinc-800 shadow-xl bg-zinc-800" alt="Poster" />
               <div className="pt-16 space-y-1">
                 <h3 className="font-heading text-xl font-bold text-white leading-tight">{preview.title}</h3>
                 <p className="text-sm text-zinc-400">{preview.originalTitle}</p>
                 <div className="flex gap-2 text-xs text-zinc-500 mt-2">
-                  <span>{preview.releaseYear}</span>
-                  <span>•</span>
-                  <span>{preview.rating?.toFixed(1)}/10</span>
+                  <span>{preview.releaseYear}</span><span>•</span><span>{preview.rating?.toFixed(1)}/10</span>
                 </div>
               </div>
             </CardContent>
-            <div className="px-6 pb-6 text-sm text-zinc-300 line-clamp-6">
-              {preview.synopsis}
-            </div>
+            <div className="px-6 pb-6 text-sm text-zinc-300 line-clamp-6">{preview.synopsis}</div>
           </Card>
         ) : (
           <div className="h-full min-h-[400px] border-2 border-dashed border-white/10 rounded-xl flex items-center justify-center text-zinc-500 flex-col gap-2">
@@ -284,266 +860,6 @@ function AddWorkTab() {
   );
 }
 
-function EditEpisodeForm({ episode, workId, onClose }: { episode: Episode; workId: number; onClose: () => void }) {
-  const updateEpisode = useUpdateEpisode();
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  const [formData, setFormData] = useState({
-    episodeNumber: String(episode.episodeNumber),
-    title: episode.title,
-    duration: episode.duration ? String(episode.duration) : '',
-    customThumbnailUrl: episode.customThumbnailUrl || '',
-    videoSlug: episode.videoSlug || '',
-  });
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await updateEpisode.mutateAsync({
-        workId,
-        episodeId: episode.id,
-        data: {
-          episodeNumber: parseInt(formData.episodeNumber, 10),
-          title: formData.title,
-          duration: formData.duration ? parseInt(formData.duration, 10) : null,
-          customThumbnailUrl: formData.customThumbnailUrl || null,
-          videoSlug: formData.videoSlug || null,
-        }
-      });
-      toast({ title: 'Sucesso', description: 'Episódio atualizado.' });
-      queryClient.invalidateQueries({ queryKey: getListEpisodesQueryKey(workId) });
-      onClose();
-    } catch {
-      toast({ title: 'Erro', description: 'Falha ao atualizar episódio.', variant: 'destructive' });
-    }
-  };
-
-  return (
-    <form onSubmit={handleSave} className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-zinc-400 text-xs">Nº do Episódio</Label>
-          <Input required type="number" value={formData.episodeNumber} onChange={e => setFormData(p => ({...p, episodeNumber: e.target.value}))} className="bg-zinc-900 border-white/10 h-9" />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-zinc-400 text-xs">Duração (min)</Label>
-          <Input type="number" value={formData.duration} onChange={e => setFormData(p => ({...p, duration: e.target.value}))} placeholder="Opcional" className="bg-zinc-900 border-white/10 h-9" />
-        </div>
-      </div>
-      <div className="space-y-1.5">
-        <Label className="text-zinc-400 text-xs">Título</Label>
-        <Input required value={formData.title} onChange={e => setFormData(p => ({...p, title: e.target.value}))} className="bg-zinc-900 border-white/10 h-9" />
-      </div>
-      <div className="space-y-1.5">
-        <Label className="text-zinc-400 text-xs">Thumbnail (URL)</Label>
-        <Input value={formData.customThumbnailUrl} onChange={e => setFormData(p => ({...p, customThumbnailUrl: e.target.value}))} placeholder="Opcional" className="bg-zinc-900 border-white/10 h-9" />
-      </div>
-      <div className="space-y-1.5">
-        <Label className="text-zinc-300 text-xs font-semibold flex items-center gap-1.5">
-          <Link className="h-3.5 w-3.5 text-primary" />
-          URL do Servidor (Serve)
-        </Label>
-        <Input
-          value={formData.videoSlug}
-          onChange={e => setFormData(p => ({...p, videoSlug: e.target.value}))}
-          placeholder="https://...replit.dev/api/links/1/serve"
-          className="bg-zinc-900 border-primary/30 focus-visible:ring-primary font-mono text-xs h-9"
-        />
-      </div>
-      <div className="flex gap-2 pt-1">
-        <Button type="button" variant="outline" onClick={onClose} className="flex-1 border-white/10 text-zinc-400 hover:text-white h-9">
-          Cancelar
-        </Button>
-        <Button type="submit" disabled={updateEpisode.isPending} className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold h-9">
-          {updateEpisode.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
-          Salvar
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-function EpisodesManager({ workId, workTitle }: { workId: number, workTitle: string }) {
-  const { data: episodes, isLoading } = useListEpisodes(workId);
-  const addEpisode = useAddEpisode();
-  const deleteEpisode = useDeleteEpisode();
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  const [editingEpisode, setEditingEpisode] = useState<Episode | null>(null);
-  const [formData, setFormData] = useState({
-    episodeNumber: '',
-    title: '',
-    duration: '',
-    customThumbnailUrl: '',
-    videoSlug: '',
-  });
-
-  const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await addEpisode.mutateAsync({
-        id: workId,
-        data: {
-          episodeNumber: parseInt(formData.episodeNumber, 10),
-          title: formData.title || `Episódio ${formData.episodeNumber}`,
-          duration: formData.duration ? parseInt(formData.duration, 10) : null,
-          customThumbnailUrl: formData.customThumbnailUrl || null,
-          videoSlug: formData.videoSlug || null,
-        }
-      });
-      toast({ title: 'Sucesso', description: 'Episódio adicionado.' });
-      queryClient.invalidateQueries({ queryKey: getListEpisodesQueryKey(workId) });
-      queryClient.invalidateQueries({ queryKey: getGetSiteStatsQueryKey() });
-      setFormData({ episodeNumber: '', title: '', duration: '', customThumbnailUrl: '', videoSlug: '' });
-    } catch (err: any) {
-      toast({ title: 'Erro', description: 'Falha ao adicionar episódio', variant: 'destructive' });
-    }
-  };
-
-  const handleDelete = async (ep: Episode) => {
-    if (!confirm(`Remover "${ep.title}"?`)) return;
-    try {
-      await deleteEpisode.mutateAsync({ workId, episodeId: ep.id });
-      toast({ title: 'Removido', description: `${ep.title} foi removido.` });
-      queryClient.invalidateQueries({ queryKey: getListEpisodesQueryKey(workId) });
-      queryClient.invalidateQueries({ queryKey: getGetSiteStatsQueryKey() });
-    } catch {
-      toast({ title: 'Erro', description: 'Falha ao remover episódio.', variant: 'destructive' });
-    }
-  };
-
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="bg-white/5 border-white/10 text-zinc-300 hover:text-white">
-          <ListVideo className="h-4 w-4 mr-2" />
-          Gerenciar Episódios
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="bg-zinc-950 border-white/10 max-w-3xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl text-white">Episódios — {workTitle}</DialogTitle>
-        </DialogHeader>
-
-        {editingEpisode ? (
-          <div className="my-4 p-4 border border-primary/20 rounded-lg bg-primary/5">
-            <h4 className="font-semibold text-white mb-4 flex items-center gap-2">
-              <Edit className="h-4 w-4 text-primary" />
-              Editando EP {editingEpisode.episodeNumber} — {editingEpisode.title}
-            </h4>
-            <EditEpisodeForm
-              episode={editingEpisode}
-              workId={workId}
-              onClose={() => setEditingEpisode(null)}
-            />
-          </div>
-        ) : (
-          <div className="my-4 p-4 border border-white/10 rounded-lg bg-white/5">
-            <h4 className="font-semibold text-white mb-4">Adicionar Novo Episódio</h4>
-            <form onSubmit={handleAdd} className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-zinc-400">Número do Episódio *</Label>
-                <Input required type="number" value={formData.episodeNumber} onChange={e => setFormData(p => ({...p, episodeNumber: e.target.value}))} className="bg-zinc-900 border-white/10" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-zinc-400">Título</Label>
-                <Input value={formData.title} onChange={e => setFormData(p => ({...p, title: e.target.value}))} placeholder="Opcional" className="bg-zinc-900 border-white/10" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-zinc-400">Duração (minutos)</Label>
-                <Input type="number" value={formData.duration} onChange={e => setFormData(p => ({...p, duration: e.target.value}))} placeholder="Opcional" className="bg-zinc-900 border-white/10" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-zinc-400">Thumbnail (URL)</Label>
-                <Input value={formData.customThumbnailUrl} onChange={e => setFormData(p => ({...p, customThumbnailUrl: e.target.value}))} placeholder="Opcional" className="bg-zinc-900 border-white/10" />
-              </div>
-              <div className="col-span-2 space-y-2">
-                <Label className="text-zinc-300 font-semibold flex items-center gap-2">
-                  <Link className="h-3.5 w-3.5 text-primary" />
-                  URL do Servidor (Serve)
-                </Label>
-                <Input
-                  value={formData.videoSlug}
-                  onChange={e => setFormData(p => ({...p, videoSlug: e.target.value}))}
-                  placeholder="https://...replit.dev/api/links/1/serve"
-                  className="bg-zinc-900 border-primary/40 focus-visible:ring-primary font-mono text-sm"
-                />
-                {formData.videoSlug && (
-                  <p className="text-xs text-zinc-500 font-mono truncate">
-                    → {formData.videoSlug}
-                  </p>
-                )}
-              </div>
-              <Button type="submit" disabled={addEpisode.isPending} className="col-span-2 bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-wider">
-                {addEpisode.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                Adicionar Episódio
-              </Button>
-            </form>
-          </div>
-        )}
-
-        <div className="space-y-2 mt-4">
-          <h4 className="font-semibold text-white mb-2">
-            Episódios Cadastrados
-            <span className="ml-2 text-xs font-normal text-zinc-500">{episodes?.length || 0} episódios</span>
-          </h4>
-          {isLoading ? (
-            <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
-          ) : episodes?.length === 0 ? (
-            <p className="text-zinc-500 text-sm">Nenhum episódio cadastrado.</p>
-          ) : (
-            episodes?.map(ep => (
-              <div key={ep.id} className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${editingEpisode?.id === ep.id ? 'bg-primary/10 border-primary/30' : 'bg-zinc-900/50 border-white/5 hover:border-white/10'}`}>
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="w-9 h-9 shrink-0 rounded bg-zinc-800 flex items-center justify-center font-bold text-zinc-400 text-sm">
-                    {ep.episodeNumber}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{ep.title}</p>
-                    <div className="flex items-center gap-3 mt-0.5">
-                      {ep.duration && <span className="text-xs text-zinc-500">{ep.duration} min</span>}
-                      {ep.videoSlug ? (
-                        <span className="text-xs text-green-400 font-mono truncate max-w-[200px]" title={ep.videoSlug}>
-                          ✓ Link configurado
-                        </span>
-                      ) : (
-                        <span className="text-xs text-zinc-600">Sem vídeo</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 shrink-0 ml-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-zinc-400 hover:text-primary hover:bg-primary/10"
-                    onClick={() => setEditingEpisode(ep)}
-                    title="Editar episódio"
-                  >
-                    <Edit className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-zinc-400 hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => handleDelete(ep)}
-                    disabled={deleteEpisode.isPending}
-                    title="Remover episódio"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function CatalogTab() {
   const { data, isLoading } = useListWorks({ limit: 100 });
   const deleteWork = useDeleteWork();
@@ -551,12 +867,12 @@ function CatalogTab() {
   const { toast } = useToast();
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Tem certeza que deseja remover esta obra?')) return;
+    if (!confirm('Tem certeza que deseja remover esta obra e todos os seus episódios?')) return;
     try {
       await deleteWork.mutateAsync({ id });
       queryClient.invalidateQueries({ queryKey: getListWorksQueryKey() });
       toast({ title: 'Sucesso', description: 'Obra removida do catálogo.' });
-    } catch (err) {
+    } catch {
       toast({ title: 'Erro', description: 'Não foi possível remover.', variant: 'destructive' });
     }
   };
@@ -578,28 +894,33 @@ function CatalogTab() {
           <tbody>
             {data?.works.map((work) => (
               <tr key={work.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                <td className="px-6 py-4 font-medium text-white flex items-center gap-3">
-                  <img 
-                    src={work.customThumbnailUrl || (work.posterPath ? `https://image.tmdb.org/t/p/w92${work.posterPath}` : '')} 
-                    className="w-10 h-14 object-cover rounded bg-zinc-800" 
-                    alt="" 
-                  />
-                  <div>
-                    <p className="line-clamp-1">{work.title}</p>
-                    <p className="text-xs text-zinc-500 font-normal">{work.releaseYear}</p>
+                <td className="px-6 py-4 font-medium text-white">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={work.customThumbnailUrl || tmdbPoster(work.posterPath, 'w92')}
+                      className="w-10 h-14 object-cover rounded bg-zinc-800 shrink-0"
+                      alt=""
+                    />
+                    <div>
+                      <p className="line-clamp-1">{work.title}</p>
+                      <p className="text-xs text-zinc-500 font-normal">{work.releaseYear}</p>
+                    </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 uppercase text-xs">{work.type}</td>
                 <td className="px-6 py-4">
-                  <span className={`px-2 py-1 rounded text-xs ${work.status === 'ongoing' ? 'bg-green-500/20 text-green-400' : 'bg-zinc-800 text-zinc-400'}`}>
-                    {work.status}
+                  <span className={`px-2 py-1 rounded text-xs ${work.status === 'ongoing' ? 'bg-green-500/20 text-green-400' : work.status === 'upcoming' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                    {work.status === 'ongoing' ? 'Em lançamento' : work.status === 'upcoming' ? 'Em breve' : 'Completo'}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-right space-x-2">
-                  <EpisodesManager workId={work.id} workTitle={work.title} />
-                  <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(work.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <td className="px-6 py-4">
+                  <div className="flex items-center justify-end gap-1">
+                    <EpisodesManager work={work} />
+                    <EditWorkDialog work={work} onUpdated={() => queryClient.invalidateQueries({ queryKey: getListWorksQueryKey() })} />
+                    <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(work.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -619,25 +940,15 @@ export default function AdminPanel() {
             <h1 className="font-heading text-3xl font-bold text-white">Painel Administrativo</h1>
             <p className="text-zinc-400 mt-2">Gerencie o catálogo, episódios e configurações da plataforma.</p>
           </div>
-
           <Tabs defaultValue="dashboard" className="w-full">
             <TabsList className="bg-zinc-900/80 border border-white/10 p-1 mb-8 w-full max-w-md grid grid-cols-3">
               <TabsTrigger value="dashboard" className="data-[state=active]:bg-white/10 data-[state=active]:text-white">Resumo</TabsTrigger>
               <TabsTrigger value="catalog" className="data-[state=active]:bg-white/10 data-[state=active]:text-white">Catálogo</TabsTrigger>
               <TabsTrigger value="add" className="data-[state=active]:bg-primary data-[state=active]:text-white">Adicionar</TabsTrigger>
             </TabsList>
-            
-            <TabsContent value="dashboard" className="outline-none">
-              <DashboardTab />
-            </TabsContent>
-            
-            <TabsContent value="catalog" className="outline-none">
-              <CatalogTab />
-            </TabsContent>
-            
-            <TabsContent value="add" className="outline-none">
-              <AddWorkTab />
-            </TabsContent>
+            <TabsContent value="dashboard" className="outline-none"><DashboardTab /></TabsContent>
+            <TabsContent value="catalog" className="outline-none"><CatalogTab /></TabsContent>
+            <TabsContent value="add" className="outline-none"><AddWorkTab /></TabsContent>
           </Tabs>
         </div>
       </ProtectedRoute>
