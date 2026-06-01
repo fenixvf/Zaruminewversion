@@ -29,3 +29,5 @@ services:
         sync: false
       - key: VITE_TMDB_API_KEY
         sync: false
+      - key: VITE_VIDEO_PROXY_BASE_URL
+        sync: false
