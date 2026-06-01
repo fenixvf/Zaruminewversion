@@ -126,9 +126,13 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
 
   const togglePlay = useCallback(() => {
     const v = videoRef.current;
-    if (!v) return;
-    if (v.paused) { v.play(); setPlaying(true); }
-    else { v.pause(); setPlaying(false); }
+    if (!v || v.readyState < 2) return;
+    if (v.paused) {
+      v.play().then(() => setPlaying(true)).catch(() => {});
+    } else {
+      v.pause();
+      setPlaying(false);
+    }
     showControlsNow();
   }, [showControlsNow]);
 
@@ -149,8 +153,7 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
       clearProgress(videoUrl);
     }
     setResumePrompt(null);
-    v.play();
-    setPlaying(true);
+    v.play().then(() => setPlaying(true)).catch(() => {});
     scheduleHide();
   }, [resumePrompt, videoUrl, scheduleHide]);
 
