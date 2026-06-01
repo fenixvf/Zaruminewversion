@@ -9,7 +9,7 @@ services:
       pnpm install --frozen-lockfile &&
       BASE_PATH=/ pnpm --filter @workspace/zarumi run build &&
       pnpm --filter @workspace/api-server run build
-    startCommand: NODE_ENV=production PORT=$PORT pnpm --filter @workspace/api-server run start
+    startCommand: NODE_ENV=production node --enable-source-maps artifacts/api-server/dist/index.mjs
     envVars:
       - key: NODE_VERSION
         value: "24"
