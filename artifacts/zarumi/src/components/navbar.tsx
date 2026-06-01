@@ -3,7 +3,8 @@ import { Link, useLocation } from 'wouter';
 import { useAuth } from './auth-provider';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
-import { PlayCircle, Search, Menu, User as UserIcon, LogOut, LayoutDashboard, Bookmark } from 'lucide-react';
+import { Search, Menu, LogOut, LayoutDashboard, Bookmark } from 'lucide-react';
+import logoImg from '/zarumi-icon.png';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -68,9 +69,7 @@ export function Navbar() {
           </Sheet>
 
           <Link href="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <PlayCircle className="h-5 w-5 text-white fill-white" />
-            </div>
+            <img src={logoImg} alt="Zarumi" className="h-10 w-10 object-contain" />
             <span className="font-heading text-2xl font-black uppercase tracking-tight text-white">Zarumi</span>
           </Link>
 
