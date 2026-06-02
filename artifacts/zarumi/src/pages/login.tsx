@@ -6,7 +6,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'fire
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlayCircle, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export default function Login() {
   const { user, isLoading } = useAuth();
@@ -50,7 +50,7 @@ export default function Login() {
       <div className="relative z-10 w-full max-w-md p-6 sm:p-8 bg-zinc-950/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl">
         <Link href="/" className="flex flex-col items-center gap-3 mb-4 cursor-pointer">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/30">
-            <PlayCircle className="h-8 w-8 text-white fill-white" />
+            <img src="/zarumi-icon.png" alt="Zarumi" className="h-8 w-8 object-contain" />
           </div>
           <span className="font-heading text-2xl font-black uppercase tracking-tight text-white">Zarumi</span>
         </Link>
