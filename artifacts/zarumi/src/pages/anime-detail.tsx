@@ -25,6 +25,27 @@ export default function AnimeDetail() {
   const [inList, setInList] = useState(false);
   const [listLoading, setListLoading] = useState(false);
   const [activeEpisode, setActiveEpisode] = useState<Episode | null>(null);
+  const [selectedSeason, setSelectedSeason] = useState<number>(1);
+
+  const seasons = React.useMemo(() => {
+    if (!episodes) return [];
+    const nums = [...new Set(episodes.map(ep => ep.seasonNumber ?? 1))].sort((a, b) => a - b);
+    return nums;
+  }, [episodes]);
+
+  const hasMultipleSeasons = seasons.length > 1;
+
+  const filteredEpisodes = React.useMemo(() => {
+    if (!episodes) return [];
+    if (!hasMultipleSeasons) return episodes;
+    return episodes.filter(ep => (ep.seasonNumber ?? 1) === selectedSeason);
+  }, [episodes, selectedSeason, hasMultipleSeasons]);
+
+  React.useEffect(() => {
+    if (seasons.length > 0 && !seasons.includes(selectedSeason)) {
+      setSelectedSeason(seasons[0]);
+    }
+  }, [seasons]);
 
   useEffect(() => {
     if (id) recordView.mutate({ id });
@@ -180,14 +201,34 @@ export default function AnimeDetail() {
         <div className="flex flex-col md:flex-row gap-10">
           {/* Episodes List */}
           <div className="flex-1">
-            <h2 className="font-heading text-2xl font-black uppercase tracking-tight text-white mb-4 flex items-center gap-2">
-              Episódios
-              <span className="text-sm font-normal text-zinc-500 normal-case tracking-normal">{episodes?.length || 0} disponíveis</span>
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+              <h2 className="font-heading text-2xl font-black uppercase tracking-tight text-white flex items-center gap-2">
+                Episódios
+                <span className="text-sm font-normal text-zinc-500 normal-case tracking-normal">{filteredEpisodes.length} disponíveis</span>
+              </h2>
 
-            {episodes && episodes.length > 0 ? (
+              {hasMultipleSeasons && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {seasons.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setSelectedSeason(s)}
+                      className={`px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider transition-colors border ${
+                        selectedSeason === s
+                          ? 'bg-primary border-primary text-white shadow-lg shadow-primary/30'
+                          : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      Temporada {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {filteredEpisodes && filteredEpisodes.length > 0 ? (
               <div className="space-y-2">
-                {episodes.map((ep) => {
+                {filteredEpisodes.map((ep) => {
                   const thumb = ep.customThumbnailUrl || (ep.thumbnailPath ? `https://image.tmdb.org/t/p/w300${ep.thumbnailPath}` : null);
                   const hasVideo = !!ep.videoSlug;
                   return (
@@ -233,7 +274,7 @@ export default function AnimeDetail() {
               </div>
             ) : (
               <div className="p-8 text-center rounded-xl bg-white/5 border border-white/10 text-zinc-400">
-                Nenhum episódio cadastrado ainda.
+                {hasMultipleSeasons ? `Nenhum episódio nesta temporada.` : 'Nenhum episódio cadastrado ainda.'}
               </div>
             )}
           </div>
