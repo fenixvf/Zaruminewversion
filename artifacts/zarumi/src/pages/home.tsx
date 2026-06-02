@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useListFeaturedWorks, useListRecentWorks, useGetTop10 } from '@workspace/api-client-react';
 import { Layout } from '@/components/layout';
 import { WorkCard } from '@/components/work-card';
 import { Button } from '@/components/ui/button';
-import { Play, Info, ChevronRight, ChevronLeft } from 'lucide-react';
-import { Link } from 'wouter';
+import { Play, Info, ChevronRight } from 'lucide-react';
+import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Spinner } from '@/components/ui/spinner';
+import { ContinueWatchingRow } from '@/components/continue-watching-row';
+import { getContinueWatching, type ContinueWatchingItem } from '@/lib/continue-watching';
 
 function HeroBanner() {
   const { data: featuredWorks, isLoading } = useListFeaturedWorks();
@@ -43,7 +45,6 @@ function HeroBanner() {
           className="absolute inset-0"
         >
           <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(${bannerUrl})` }} />
-          {/* Gradients to blend into background */}
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-background via-background/40 to-transparent" />
         </motion.div>
@@ -64,7 +65,7 @@ function HeroBanner() {
                   Filme
                 </span>
               )}
-              <h1 className="font-heading text-5xl md:text-7xl lg:text-8xl font-black uppercase tracking-tighter text-white drop-shadow-lg">
+              <h1 className="font-heading text-5xl md:text-7xl lg:text-8xl font-black uppercase tracking-wide text-white drop-shadow-lg">
                 {work.title}
               </h1>
               {work.synopsis && (
@@ -91,7 +92,6 @@ function HeroBanner() {
         </div>
       </div>
       
-      {/* Navigation dots */}
       <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-20">
         {featuredWorks.map((_, i) => (
           <button
@@ -121,26 +121,42 @@ function Section({ title, children }: { title: string, children: React.ReactNode
 }
 
 export default function Home() {
-  const { data: recentWorks, isLoading: isLoadingRecent } = useListRecentWorks({ limit: 12 });
+  const { data: recentWorks, isLoading: isLoadingRecent } = useListRecentWorks({ limit: 10 });
   const { data: topWorks, isLoading: isLoadingTop } = useGetTop10();
+  const [, setLocation] = useLocation();
+  const [cwItems, setCwItems] = useState<ContinueWatchingItem[]>([]);
+
+  useEffect(() => {
+    setCwItems(getContinueWatching());
+  }, []);
+
+  const handleContinuePlay = useCallback((item: ContinueWatchingItem) => {
+    setLocation(`/anime/${item.workId}?resume=${item.episodeId}`);
+  }, [setLocation]);
 
   return (
     <Layout>
       <HeroBanner />
 
       <div className="relative z-10 -mt-20 flex flex-col gap-4 pb-20 bg-background">
-        
+
+        {cwItems.length > 0 && (
+          <ContinueWatchingRow onPlay={handleContinuePlay} />
+        )}
+
         <Section title="Adicionados Recentemente">
           {isLoadingRecent ? (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="aspect-[2/3] animate-pulse rounded-md bg-zinc-800" />
+                <div key={i} className="w-[140px] md:w-[160px] flex-shrink-0 aspect-[2/3] animate-pulse rounded-md bg-zinc-800" />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-              {recentWorks?.map((work) => (
-                <WorkCard key={work.id} work={work} />
+            <div className="flex overflow-x-auto pb-3 gap-3 scrollbar-hide snap-x -mx-3 px-3 md:mx-0 md:px-0">
+              {recentWorks?.slice(0, 10).map((work) => (
+                <div key={work.id} className="w-[140px] md:w-[160px] flex-shrink-0 snap-start">
+                  <WorkCard work={work} />
+                </div>
               ))}
             </div>
           )}
@@ -148,9 +164,9 @@ export default function Home() {
 
         <Section title="Top 10 Zarumi">
           {isLoadingTop ? (
-            <div className="grid grid-cols-2 gap-x-8 gap-y-2 sm:grid-cols-3 md:grid-cols-5">
+            <div className="flex gap-x-2 overflow-x-auto pb-2 scrollbar-hide">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="aspect-[2/3] animate-pulse rounded-md bg-zinc-800" />
+                <div key={i} className="w-[130px] md:w-[150px] flex-shrink-0 aspect-[2/3] animate-pulse rounded-md bg-zinc-800" />
               ))}
             </div>
           ) : (

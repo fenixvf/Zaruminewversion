@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useRoute, useLocation } from 'wouter';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useRoute, useLocation, useSearch } from 'wouter';
 import { useGetWork, useListEpisodes, useRecordView } from '@workspace/api-client-react';
 import { Layout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
@@ -10,10 +10,12 @@ import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import type { Episode } from '@workspace/api-client-react';
+import { saveContinueWatching } from '@/lib/continue-watching';
 
 export default function AnimeDetail() {
   const [, params] = useRoute('/anime/:id');
   const id = params?.id ? parseInt(params.id, 10) : 0;
+  const search = useSearch();
 
   const { data: work, isLoading } = useGetWork(id, { query: { enabled: !!id } });
   const { data: episodes } = useListEpisodes(id, { query: { enabled: !!id } });
@@ -26,6 +28,7 @@ export default function AnimeDetail() {
   const [listLoading, setListLoading] = useState(false);
   const [activeEpisode, setActiveEpisode] = useState<Episode | null>(null);
   const [selectedSeason, setSelectedSeason] = useState<number>(1);
+  const [resumeHandled, setResumeHandled] = useState(false);
 
   const seasons = React.useMemo(() => {
     if (!episodes) return [];
@@ -50,6 +53,36 @@ export default function AnimeDetail() {
   useEffect(() => {
     if (id) recordView.mutate({ id });
   }, [id]);
+
+  const openEpisode = useCallback((ep: Episode) => {
+    if (!work) return;
+    setActiveEpisode(ep);
+    const thumb = ep.customThumbnailUrl || (ep.thumbnailPath ? `https://image.tmdb.org/t/p/w300${ep.thumbnailPath}` : null)
+      || work.customThumbnailUrl || (work.posterPath ? `https://image.tmdb.org/t/p/w500${work.posterPath}` : null);
+    saveContinueWatching({
+      workId: work.id,
+      episodeId: ep.id,
+      videoSlug: ep.videoSlug ?? '',
+      thumbnail: thumb,
+      workTitle: work.title,
+      epTitle: ep.title,
+      episodeNumber: ep.episodeNumber,
+      seasonNumber: ep.seasonNumber ?? null,
+    });
+  }, [work]);
+
+  useEffect(() => {
+    if (resumeHandled || !episodes || !work) return;
+    const params = new URLSearchParams(search);
+    const resumeId = params.get('resume');
+    if (resumeId) {
+      const ep = episodes.find(e => String(e.id) === resumeId);
+      if (ep) {
+        openEpisode(ep);
+      }
+      setResumeHandled(true);
+    }
+  }, [episodes, work, search, resumeHandled, openEpisode]);
 
   useEffect(() => {
     async function checkList() {
@@ -174,7 +207,7 @@ export default function AnimeDetail() {
                     <Button
                       size="lg"
                       className="font-black uppercase tracking-wider bg-primary hover:bg-primary/90 text-white"
-                      onClick={() => setActiveEpisode(episodes[0])}
+                      onClick={() => openEpisode(episodes[0])}
                     >
                       <Play className="mr-2 h-5 w-5 fill-current" />
                       Assistir EP 1
@@ -234,7 +267,7 @@ export default function AnimeDetail() {
                   return (
                     <button
                       key={ep.id}
-                      onClick={() => setActiveEpisode(ep)}
+                      onClick={() => openEpisode(ep)}
                       className={`group w-full flex gap-4 p-3 rounded-xl transition-colors border text-left ${hasVideo ? 'hover:bg-white/5 border-transparent hover:border-white/10 cursor-pointer' : 'border-transparent opacity-60 cursor-default'}`}
                       disabled={!hasVideo}
                       title={!hasVideo ? 'Vídeo não disponível' : undefined}
