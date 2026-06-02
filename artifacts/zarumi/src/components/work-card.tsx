@@ -36,13 +36,20 @@ export function WorkCard({ work, rank }: WorkCardProps) {
         </div>
 
         {/* Badges / Info */}
-        <div className="absolute top-2 right-2 flex gap-1">
-          {work.type === 'movie' && (
-            <span className="rounded bg-black/60 px-2 py-1 text-xs font-semibold text-white backdrop-blur-md">
-              Filme
-            </span>
-          )}
-        </div>
+        {!rank && (
+          <div className="absolute top-2 right-2 flex gap-1">
+            {work.type === 'movie' && (
+              <span className="rounded bg-primary/80 px-2 py-1 text-xs font-bold text-white backdrop-blur-md uppercase tracking-wide">
+                Filme
+              </span>
+            )}
+            {work.type === 'tv' && (
+              <span className="rounded bg-black/70 px-2 py-1 text-xs font-bold text-white backdrop-blur-md uppercase tracking-wide">
+                Série
+              </span>
+            )}
+          </div>
+        )}
         
         <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-4 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
           <h3 className="font-heading text-base font-bold uppercase leading-tight text-white line-clamp-2">

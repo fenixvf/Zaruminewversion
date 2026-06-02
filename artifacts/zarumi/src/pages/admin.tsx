@@ -582,22 +582,26 @@ function EpisodesManager({ work }: { work: Work }) {
               <span className="text-white font-semibold">Novo Episódio</span>
             </div>
             <form onSubmit={handleAdd} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className={`grid gap-3 ${work.type === 'movie' ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                {work.type !== 'movie' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-zinc-400 text-xs">Temporada</Label>
+                    <Input type="number" value={addForm.seasonNumber} onChange={e => setAddForm(p => ({ ...p, seasonNumber: e.target.value }))} placeholder="Ex: 1" className="bg-zinc-900 border-white/10 h-9" />
+                  </div>
+                )}
                 <div className="space-y-1.5">
-                  <Label className="text-zinc-400 text-xs">Temporada</Label>
-                  <Input type="number" value={addForm.seasonNumber} onChange={e => setAddForm(p => ({ ...p, seasonNumber: e.target.value }))} placeholder="Ex: 1" className="bg-zinc-900 border-white/10 h-9" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-zinc-400 text-xs">Nº do Episódio *</Label>
-                  <Input required type="number" value={addForm.episodeNumber} onChange={e => setAddForm(p => ({ ...p, episodeNumber: e.target.value }))} className="bg-zinc-900 border-white/10 h-9" />
+                  <Label className="text-zinc-400 text-xs">{work.type === 'movie' ? 'Nome do Filme *' : 'Nº do Episódio *'}</Label>
+                  <Input required type={work.type === 'movie' ? 'text' : 'number'} value={work.type === 'movie' ? addForm.title : addForm.episodeNumber} onChange={e => work.type === 'movie' ? setAddForm(p => ({ ...p, title: e.target.value, episodeNumber: '1' })) : setAddForm(p => ({ ...p, episodeNumber: e.target.value }))} placeholder={work.type === 'movie' ? 'Nome do filme' : ''} className="bg-zinc-900 border-white/10 h-9" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-zinc-400 text-xs">Título</Label>
-                  <Input value={addForm.title} onChange={e => setAddForm(p => ({ ...p, title: e.target.value }))} placeholder="Opcional" className="bg-zinc-900 border-white/10 h-9" />
-                </div>
-                <div className="space-y-1.5">
+                {work.type !== 'movie' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-zinc-400 text-xs">Título</Label>
+                    <Input value={addForm.title} onChange={e => setAddForm(p => ({ ...p, title: e.target.value }))} placeholder="Opcional" className="bg-zinc-900 border-white/10 h-9" />
+                  </div>
+                )}
+                <div className={work.type === 'movie' ? 'col-span-2 space-y-1.5' : 'space-y-1.5'}>
                   <Label className="text-zinc-400 text-xs">Duração (min)</Label>
                   <Input type="number" value={addForm.duration} onChange={e => setAddForm(p => ({ ...p, duration: e.target.value }))} placeholder="Opcional" className="bg-zinc-900 border-white/10 h-9" />
                 </div>
@@ -865,6 +869,13 @@ function CatalogTab() {
   const deleteWork = useDeleteWork();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [search, setSearch] = useState('');
+
+  const filteredWorks = React.useMemo(() => {
+    if (!data?.works) return [];
+    if (!search.trim()) return data.works;
+    return data.works.filter(w => w.title.toLowerCase().includes(search.toLowerCase()));
+  }, [data?.works, search]);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Tem certeza que deseja remover esta obra e todos os seus episódios?')) return;
@@ -880,6 +891,16 @@ function CatalogTab() {
   if (isLoading) return <div className="py-10 flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
+    <div className="space-y-4">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
+        <Input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar obra por título..."
+          className="pl-9 bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus-visible:ring-primary"
+        />
+      </div>
     <div className="rounded-xl border border-white/10 bg-zinc-900/50 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left text-zinc-300">
@@ -892,7 +913,12 @@ function CatalogTab() {
             </tr>
           </thead>
           <tbody>
-            {data?.works.map((work) => (
+            {filteredWorks.length === 0 && search && (
+              <tr>
+                <td colSpan={4} className="px-6 py-10 text-center text-zinc-500">Nenhuma obra encontrada para "{search}".</td>
+              </tr>
+            )}
+            {filteredWorks.map((work) => (
               <tr key={work.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                 <td className="px-6 py-4 font-medium text-white">
                   <div className="flex items-center gap-3">
@@ -927,6 +953,7 @@ function CatalogTab() {
           </tbody>
         </table>
       </div>
+    </div>
     </div>
   );
 }
