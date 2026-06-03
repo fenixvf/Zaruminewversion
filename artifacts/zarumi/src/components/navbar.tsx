@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 const navItems = [
   { href: '/', label: 'Início', icon: Home, match: (loc: string) => loc === '/' },
@@ -102,7 +102,7 @@ export function Navbar() {
 
             <SheetContent
               side="left"
-              className="w-[280px] p-0 border-r border-white/10 bg-zinc-950 flex flex-col overflow-hidden"
+              className="w-[280px] p-0 border-r border-white/10 bg-zinc-950 flex flex-col overflow-hidden [&>button]:hidden"
             >
               <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute top-0 left-0 right-0 h-48 bg-gradient-to-b from-primary/10 to-transparent" />
@@ -110,11 +110,15 @@ export function Navbar() {
               </div>
 
               <div className="relative z-10 flex flex-col h-full">
-                <div className="flex items-center px-5 pt-5 pb-4 border-b border-white/10">
+                <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/10">
                   <Link href="/" onClick={() => setSheetOpen(false)} className="flex items-center gap-2.5 transition-opacity hover:opacity-80">
                     <img src={logoImg} alt="Zarumi" className="h-8 w-8 object-contain" />
                     <span className="font-heading text-xl font-black uppercase tracking-tight text-white">Zarumi</span>
                   </Link>
+                  <SheetClose className="h-8 w-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors">
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Fechar</span>
+                  </SheetClose>
                 </div>
 
                 <form onSubmit={handleMobileSearch} className="relative mx-4 mt-4">
