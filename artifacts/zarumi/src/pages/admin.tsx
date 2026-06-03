@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout';
 import { ProtectedRoute } from '@/components/protected-route';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,13 +17,19 @@ import {
   useAddEpisode,
   useUpdateEpisode,
   useDeleteEpisode,
+  useGetTop10,
   getListWorksQueryKey,
   getGetSiteStatsQueryKey,
-  getListEpisodesQueryKey
+  getListEpisodesQueryKey,
+  getGetTop10QueryKey,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Search, Trash2, Edit, Plus, Tv, Film, Eye, ListVideo, Save, Link, Images, ChevronLeft } from 'lucide-react';
+import {
+  Loader2, Search, Trash2, Edit, Plus, Tv, Film, Eye, ListVideo,
+  Save, Link, Images, ChevronLeft, LayoutDashboard, Library,
+  PlusCircle, Trophy, TrendingUp, Star, BarChart3, Menu, X
+} from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { Episode, Work } from '@workspace/api-client-react';
 
@@ -48,28 +53,96 @@ async function fetchTmdb(path: string) {
   return res.json();
 }
 
+type AdminTab = 'dashboard' | 'catalog' | 'add' | 'top10';
+
+const NAV_ITEMS: { id: AdminTab; label: string; icon: React.ReactNode; accent?: boolean }[] = [
+  { id: 'dashboard', label: 'Resumo', icon: <LayoutDashboard className="h-4 w-4" /> },
+  { id: 'catalog', label: 'Catálogo', icon: <Library className="h-4 w-4" /> },
+  { id: 'add', label: 'Adicionar Obra', icon: <PlusCircle className="h-4 w-4" />, accent: true },
+  { id: 'top10', label: 'Top 10', icon: <Trophy className="h-4 w-4" /> },
+];
+
 function DashboardTab() {
   const { data: stats, isLoading } = useGetSiteStats();
   if (isLoading) return <div className="py-10 flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!stats) return null;
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {[
-        { label: 'Total de Obras', value: stats.totalWorks, icon: <Tv className="h-4 w-4 text-zinc-500" /> },
-        { label: 'Episódios', value: stats.totalEpisodes, icon: <ListVideo className="h-4 w-4 text-zinc-500" /> },
-        { label: 'Visualizações', value: stats.totalViews.toLocaleString(), icon: <Eye className="h-4 w-4 text-zinc-500" /> },
-        { label: 'Em Lançamento', value: stats.ongoingCount || 0, icon: <Tv className="h-4 w-4 text-green-500" /> },
-      ].map(({ label, value, icon }) => (
-        <Card key={label} className="bg-zinc-900/50 border-white/10">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-400">{label}</CardTitle>
-            {icon}
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-white mb-1">Visão Geral</h2>
+        <p className="text-zinc-500 text-sm">Estatísticas gerais da plataforma.</p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: 'Total de Obras', value: stats.totalWorks, icon: <Tv className="h-5 w-5" />, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+          { label: 'Episódios', value: stats.totalEpisodes, icon: <ListVideo className="h-5 w-5" />, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+          { label: 'Visualizações', value: stats.totalViews.toLocaleString(), icon: <Eye className="h-5 w-5" />, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+          { label: 'Em Lançamento', value: stats.ongoingCount || 0, icon: <TrendingUp className="h-5 w-5" />, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+        ].map(({ label, value, icon, color, bg }) => (
+          <Card key={label} className="bg-zinc-900/60 border-white/8 hover:border-white/15 transition-colors">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</span>
+                <div className={`${bg} ${color} p-2 rounded-lg`}>{icon}</div>
+              </div>
+              <div className="text-3xl font-black text-white">{value}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card className="bg-zinc-900/60 border-white/8">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-zinc-400 flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" /> Distribuição por Status
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">{value}</div>
+          <CardContent className="space-y-3">
+            {[
+              { label: 'Completos', value: stats.completedCount ?? 0, color: 'bg-zinc-500' },
+              { label: 'Em Lançamento', value: stats.ongoingCount ?? 0, color: 'bg-emerald-500' },
+              { label: 'Em Breve', value: (stats.totalWorks - (stats.completedCount ?? 0) - (stats.ongoingCount ?? 0)), color: 'bg-amber-500' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`h-2 w-2 rounded-full ${color}`} />
+                  <span className="text-sm text-zinc-400">{label}</span>
+                </div>
+                <span className="text-sm font-bold text-white">{value}</span>
+              </div>
+            ))}
           </CardContent>
         </Card>
-      ))}
+
+        <Card className="bg-zinc-900/60 border-white/8">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-zinc-400 flex items-center gap-2">
+              <Star className="h-4 w-4" /> Métricas Rápidas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-zinc-400">Episódios por Obra (média)</span>
+              <span className="text-sm font-bold text-white">
+                {stats.totalWorks > 0 ? (stats.totalEpisodes / stats.totalWorks).toFixed(1) : '0'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-zinc-400">Views por Obra (média)</span>
+              <span className="text-sm font-bold text-white">
+                {stats.totalWorks > 0 ? Math.round(stats.totalViews / stats.totalWorks).toLocaleString() : '0'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-zinc-400">Taxa de Lançamento</span>
+              <span className="text-sm font-bold text-emerald-400">
+                {stats.totalWorks > 0 ? Math.round(((stats.ongoingCount ?? 0) / stats.totalWorks) * 100) : 0}%
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -173,7 +246,7 @@ function EditWorkDialog({ work, onUpdated }: { work: Work; onUpdated: () => void
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-zinc-400">Status</Label>
-                  <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v }))}>
+                  <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v as any }))}>
                     <SelectTrigger className="bg-zinc-900 border-white/10">
                       <SelectValue />
                     </SelectTrigger>
@@ -285,7 +358,26 @@ function TmdbEpisodePicker({ tmdbId, episodes, onApply }: {
       .finally(() => setLoadingEps(false));
   }, [selectedSeason, tmdbId]);
 
-  const existingNumbers = new Set(episodes.map(e => e.episodeNumber));
+  const episodesInSeason = React.useMemo(() => {
+    if (selectedSeason == null) return new Set<number>();
+    return new Set(
+      episodes
+        .filter(e => e.seasonNumber === selectedSeason || (selectedSeason === 1 && e.seasonNumber == null))
+        .map(e => e.episodeNumber)
+    );
+  }, [episodes, selectedSeason]);
+
+  const thumbnailedInSeason = React.useMemo(() => {
+    if (selectedSeason == null) return new Set<number>();
+    return new Set(
+      episodes
+        .filter(e =>
+          (e.seasonNumber === selectedSeason || (selectedSeason === 1 && e.seasonNumber == null))
+          && e.customThumbnailUrl
+        )
+        .map(e => e.episodeNumber)
+    );
+  }, [episodes, selectedSeason]);
 
   if (loading) return (
     <div className="flex items-center justify-center py-12">
@@ -319,11 +411,21 @@ function TmdbEpisodePicker({ tmdbId, episodes, onApply }: {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto pr-1">
           {seasonEpisodes.map((ep: any) => {
             const stillUrl = ep.still_path ? tmdbStill(ep.still_path, 'w300') : null;
-            const alreadyLinked = existingNumbers.has(ep.episode_number);
+            const episodeLinked = episodesInSeason.has(ep.episode_number);
+            const thumbnailApplied = thumbnailedInSeason.has(ep.episode_number);
             return (
-              <div key={ep.id} className={`rounded-lg overflow-hidden border transition-colors ${alreadyLinked ? 'border-primary/40 bg-primary/5' : 'border-white/10 bg-zinc-900/60'}`}>
+              <div key={ep.id} className={`rounded-lg overflow-hidden border transition-colors ${thumbnailApplied ? 'border-emerald-500/50 bg-emerald-500/5' : episodeLinked ? 'border-primary/40 bg-primary/5' : 'border-white/10 bg-zinc-900/60'}`}>
                 {stillUrl ? (
-                  <img src={stillUrl} alt={ep.name} className="w-full aspect-video object-cover" />
+                  <div className="relative">
+                    <img src={stillUrl} alt={ep.name} className="w-full aspect-video object-cover" />
+                    {thumbnailApplied && (
+                      <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center">
+                        <div className="bg-emerald-500 rounded-full p-1">
+                          <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="w-full aspect-video bg-zinc-800 flex items-center justify-center">
                     <Film className="h-6 w-6 text-zinc-600" />
@@ -335,14 +437,17 @@ function TmdbEpisodePicker({ tmdbId, episodes, onApply }: {
                       <p className="text-xs font-bold text-zinc-300">EP {ep.episode_number}</p>
                       <p className="text-xs text-zinc-400 truncate leading-tight">{ep.name}</p>
                     </div>
-                    {alreadyLinked && (
-                      <span className="text-[10px] text-primary font-bold bg-primary/10 px-1 rounded shrink-0">✓</span>
+                    {thumbnailApplied && (
+                      <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded shrink-0">✓ Aplicado</span>
+                    )}
+                    {episodeLinked && !thumbnailApplied && (
+                      <span className="text-[10px] text-primary font-bold bg-primary/10 px-1.5 py-0.5 rounded shrink-0">Cadastrado</span>
                     )}
                   </div>
                   {stillUrl && (
                     <Button
                       size="sm"
-                      className="w-full h-7 text-xs bg-primary/90 hover:bg-primary text-white"
+                      className={`w-full h-7 text-xs text-white ${thumbnailApplied ? 'bg-emerald-600/80 hover:bg-emerald-600' : 'bg-primary/90 hover:bg-primary'}`}
                       onClick={() => onApply(
                         ep.episode_number,
                         selectedSeason!,
@@ -351,7 +456,7 @@ function TmdbEpisodePicker({ tmdbId, episodes, onApply }: {
                         ep.overview || ''
                       )}
                     >
-                      {alreadyLinked ? 'Atualizar thumbnail' : 'Aplicar thumbnail'}
+                      {thumbnailApplied ? 'Atualizar thumbnail' : 'Aplicar thumbnail'}
                     </Button>
                   )}
                 </div>
@@ -461,7 +566,10 @@ function EpisodesManager({ work }: { work: Work }) {
     title: string,
     synopsis: string
   ) => {
-    const existing = episodes?.find(e => e.episodeNumber === episodeNumber && (e.seasonNumber === seasonNumber || e.seasonNumber == null));
+    const existing = episodes?.find(e =>
+      e.episodeNumber === episodeNumber &&
+      (e.seasonNumber === seasonNumber || (seasonNumber === 1 && e.seasonNumber == null))
+    );
     if (existing) {
       try {
         await updateEpisode.mutateAsync({
@@ -769,96 +877,102 @@ function AddWorkTab() {
   };
 
   return (
-    <div className="grid md:grid-cols-2 gap-8">
-      <div className="space-y-6">
-        <Card className="bg-zinc-900/50 border-white/10">
-          <CardHeader><CardTitle className="text-white">Buscar no TMDB</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-zinc-400">Tipo</Label>
-                <Select value={tmdbType} onValueChange={(v: 'tv' | 'movie') => setTmdbType(v)}>
-                  <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="tv">Série (TV)</SelectItem>
-                    <SelectItem value="movie">Filme</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-zinc-400">TMDB ID</Label>
-                <div className="flex gap-2">
-                  <Input value={tmdbId} onChange={e => setTmdbId(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchTmdb()} placeholder="Ex: 37854" className="bg-white/5 border-white/10" />
-                  <Button onClick={searchTmdb} disabled={loadingTmdb} className="bg-white/10 hover:bg-white/20 text-white">
-                    {loadingTmdb ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <div className="pt-4 space-y-4 border-t border-white/10">
-              <div className="space-y-2">
-                <Label className="text-zinc-400">Status</Label>
-                <Select value={formData.status} onValueChange={v => setFormData(p => ({ ...p, status: v }))}>
-                  <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ongoing">Em Lançamento</SelectItem>
-                    <SelectItem value="completed">Completo</SelectItem>
-                    <SelectItem value="upcoming">Em Breve</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-4">
-                <div>
-                  <Label className="text-base text-white">Destaque</Label>
-                  <p className="text-sm text-zinc-500">Mostrar no banner da página inicial</p>
-                </div>
-                <Switch checked={formData.isFeatured} onCheckedChange={v => setFormData(p => ({ ...p, isFeatured: v }))} />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-zinc-400">Thumbnail Personalizada (URL)</Label>
-                <Input value={formData.customThumbnailUrl} onChange={e => setFormData(p => ({ ...p, customThumbnailUrl: e.target.value }))} placeholder="Deixe em branco para usar TMDB" className="bg-white/5 border-white/10" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-zinc-400">Banner Personalizado (URL)</Label>
-                <Input value={formData.customBannerUrl} onChange={e => setFormData(p => ({ ...p, customBannerUrl: e.target.value }))} placeholder="Deixe em branco para usar TMDB" className="bg-white/5 border-white/10" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-zinc-400">Gêneros (separados por vírgula)</Label>
-                <Input value={formData.genres} onChange={e => setFormData(p => ({ ...p, genres: e.target.value }))} className="bg-white/5 border-white/10" />
-              </div>
-            </div>
-            <Button onClick={handleCreate} disabled={!preview || createWork.isPending} className="w-full bg-primary hover:bg-primary/90 text-white font-bold mt-4">
-              {createWork.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Plus className="h-5 w-5 mr-2" />}
-              Adicionar ao Catálogo
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="space-y-6">
       <div>
-        {preview ? (
-          <Card className="bg-zinc-900/50 border-white/10 overflow-hidden sticky top-24">
-            <div className="aspect-video w-full relative">
-              <img src={formData.customBannerUrl || tmdbBackdrop(preview.backdropPath)} className="w-full h-full object-cover" alt="Banner" />
-              <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent" />
-            </div>
-            <CardContent className="relative -mt-16 flex gap-4">
-              <img src={formData.customThumbnailUrl || tmdbPoster(preview.posterPath)} className="w-24 h-36 rounded-md object-cover border-2 border-zinc-800 shadow-xl bg-zinc-800" alt="Poster" />
-              <div className="pt-16 space-y-1">
-                <h3 className="font-heading text-xl font-bold text-white leading-tight">{preview.title}</h3>
-                <p className="text-sm text-zinc-400">{preview.originalTitle}</p>
-                <div className="flex gap-2 text-xs text-zinc-500 mt-2">
-                  <span>{preview.releaseYear}</span><span>•</span><span>{preview.rating?.toFixed(1)}/10</span>
+        <h2 className="text-xl font-bold text-white mb-1">Adicionar Nova Obra</h2>
+        <p className="text-zinc-500 text-sm">Busque no TMDB e adicione ao catálogo.</p>
+      </div>
+      <div className="grid md:grid-cols-2 gap-8">
+        <div className="space-y-6">
+          <Card className="bg-zinc-900/60 border-white/8">
+            <CardHeader><CardTitle className="text-white">Buscar no TMDB</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-zinc-400">Tipo</Label>
+                  <Select value={tmdbType} onValueChange={(v: 'tv' | 'movie') => setTmdbType(v)}>
+                    <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="tv">Série (TV)</SelectItem>
+                      <SelectItem value="movie">Filme</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-zinc-400">TMDB ID</Label>
+                  <div className="flex gap-2">
+                    <Input value={tmdbId} onChange={e => setTmdbId(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchTmdb()} placeholder="Ex: 37854" className="bg-white/5 border-white/10" />
+                    <Button onClick={searchTmdb} disabled={loadingTmdb} className="bg-white/10 hover:bg-white/20 text-white">
+                      {loadingTmdb ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 </div>
               </div>
+              <div className="pt-4 space-y-4 border-t border-white/10">
+                <div className="space-y-2">
+                  <Label className="text-zinc-400">Status</Label>
+                  <Select value={formData.status} onValueChange={v => setFormData(p => ({ ...p, status: v }))}>
+                    <SelectTrigger className="bg-white/5 border-white/10"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ongoing">Em Lançamento</SelectItem>
+                      <SelectItem value="completed">Completo</SelectItem>
+                      <SelectItem value="upcoming">Em Breve</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-4">
+                  <div>
+                    <Label className="text-base text-white">Destaque</Label>
+                    <p className="text-sm text-zinc-500">Mostrar no banner da página inicial</p>
+                  </div>
+                  <Switch checked={formData.isFeatured} onCheckedChange={v => setFormData(p => ({ ...p, isFeatured: v }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-zinc-400">Thumbnail Personalizada (URL)</Label>
+                  <Input value={formData.customThumbnailUrl} onChange={e => setFormData(p => ({ ...p, customThumbnailUrl: e.target.value }))} placeholder="Deixe em branco para usar TMDB" className="bg-white/5 border-white/10" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-zinc-400">Banner Personalizado (URL)</Label>
+                  <Input value={formData.customBannerUrl} onChange={e => setFormData(p => ({ ...p, customBannerUrl: e.target.value }))} placeholder="Deixe em branco para usar TMDB" className="bg-white/5 border-white/10" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-zinc-400">Gêneros (separados por vírgula)</Label>
+                  <Input value={formData.genres} onChange={e => setFormData(p => ({ ...p, genres: e.target.value }))} className="bg-white/5 border-white/10" />
+                </div>
+              </div>
+              <Button onClick={handleCreate} disabled={!preview || createWork.isPending} className="w-full bg-primary hover:bg-primary/90 text-white font-bold mt-4">
+                {createWork.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Plus className="h-5 w-5 mr-2" />}
+                Adicionar ao Catálogo
+              </Button>
             </CardContent>
-            <div className="px-6 pb-6 text-sm text-zinc-300 line-clamp-6">{preview.synopsis}</div>
           </Card>
-        ) : (
-          <div className="h-full min-h-[400px] border-2 border-dashed border-white/10 rounded-xl flex items-center justify-center text-zinc-500 flex-col gap-2">
-            <Tv className="h-8 w-8" />
-            <p>Faça uma busca para visualizar a obra</p>
-          </div>
-        )}
+        </div>
+        <div>
+          {preview ? (
+            <Card className="bg-zinc-900/60 border-white/8 overflow-hidden sticky top-24">
+              <div className="aspect-video w-full relative">
+                <img src={formData.customBannerUrl || tmdbBackdrop(preview.backdropPath)} className="w-full h-full object-cover" alt="Banner" />
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 to-transparent" />
+              </div>
+              <CardContent className="relative -mt-16 flex gap-4">
+                <img src={formData.customThumbnailUrl || tmdbPoster(preview.posterPath)} className="w-24 h-36 rounded-md object-cover border-2 border-zinc-800 shadow-xl bg-zinc-800" alt="Poster" />
+                <div className="pt-16 space-y-1">
+                  <h3 className="font-heading text-xl font-bold text-white leading-tight">{preview.title}</h3>
+                  <p className="text-sm text-zinc-400">{preview.originalTitle}</p>
+                  <div className="flex gap-2 text-xs text-zinc-500 mt-2">
+                    <span>{preview.releaseYear}</span><span>•</span><span>{preview.rating?.toFixed(1)}/10</span>
+                  </div>
+                </div>
+              </CardContent>
+              <div className="px-6 pb-6 text-sm text-zinc-300 line-clamp-6">{preview.synopsis}</div>
+            </Card>
+          ) : (
+            <div className="h-full min-h-[400px] border-2 border-dashed border-white/10 rounded-xl flex items-center justify-center text-zinc-500 flex-col gap-2">
+              <Tv className="h-8 w-8" />
+              <p>Faça uma busca para visualizar a obra</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -888,95 +1002,392 @@ function CatalogTab() {
     }
   };
 
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-white mb-1">Catálogo</h2>
+        <p className="text-zinc-500 text-sm">Gerencie todas as obras da plataforma.</p>
+      </div>
+
+      {isLoading ? (
+        <div className="py-10 flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+      ) : (
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar obra por título..."
+              className="pl-9 bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus-visible:ring-primary"
+            />
+          </div>
+          <div className="rounded-xl border border-white/10 bg-zinc-900/50 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left text-zinc-300">
+                <thead className="text-xs uppercase bg-white/5 text-zinc-400 border-b border-white/10">
+                  <tr>
+                    <th className="px-6 py-4">Obra</th>
+                    <th className="px-6 py-4">Tipo</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredWorks.length === 0 && search && (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-10 text-center text-zinc-500">Nenhuma obra encontrada para "{search}".</td>
+                    </tr>
+                  )}
+                  {filteredWorks.map((work) => (
+                    <tr key={work.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                      <td className="px-6 py-4 font-medium text-white">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={work.customThumbnailUrl || tmdbPoster(work.posterPath, 'w92')}
+                            className="w-10 h-14 object-cover rounded bg-zinc-800 shrink-0"
+                            alt=""
+                          />
+                          <div>
+                            <p className="line-clamp-1">{work.title}</p>
+                            <p className="text-xs text-zinc-500 font-normal">{work.releaseYear}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 uppercase text-xs">{work.type}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded text-xs ${work.status === 'ongoing' ? 'bg-green-500/20 text-green-400' : work.status === 'upcoming' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                          {work.status === 'ongoing' ? 'Em lançamento' : work.status === 'upcoming' ? 'Em breve' : 'Completo'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <EpisodesManager work={work} />
+                          <EditWorkDialog work={work} onUpdated={() => queryClient.invalidateQueries({ queryKey: getListWorksQueryKey() })} />
+                          <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(work.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Top10Tab() {
+  const { data: top10, isLoading, refetch } = useGetTop10();
+  const { data: worksData } = useListWorks({ limit: 200 });
+  const updateWork = useUpdateWork();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [search, setSearch] = useState('');
+  const [addingWork, setAddingWork] = useState(false);
+
+  const allWorks = worksData?.works ?? [];
+  const top10Ids = new Set((top10 ?? []).map(w => w.id));
+
+  const filteredWorks = React.useMemo(() => {
+    if (!search.trim()) return [];
+    return allWorks.filter(w => !top10Ids.has(w.id) && w.title.toLowerCase().includes(search.toLowerCase())).slice(0, 6);
+  }, [allWorks, search, top10Ids]);
+
+  const startEdit = (id: number, current: number) => {
+    setEditingId(id);
+    setEditValue(String(current));
+  };
+
+  const saveViewCount = async (id: number) => {
+    const val = parseInt(editValue, 10);
+    if (isNaN(val) || val < 0) {
+      toast({ title: 'Valor inválido', variant: 'destructive' });
+      return;
+    }
+    try {
+      await updateWork.mutateAsync({ id, data: { viewCount: val } });
+      queryClient.invalidateQueries({ queryKey: getGetTop10QueryKey() });
+      queryClient.invalidateQueries({ queryKey: getListWorksQueryKey() });
+      setEditingId(null);
+      toast({ title: 'Visualizações atualizadas' });
+    } catch {
+      toast({ title: 'Erro ao salvar', variant: 'destructive' });
+    }
+  };
+
+  const boostWork = async (id: number, currentViews: number, addViews: number) => {
+    try {
+      await updateWork.mutateAsync({ id, data: { viewCount: currentViews + addViews } });
+      queryClient.invalidateQueries({ queryKey: getGetTop10QueryKey() });
+      queryClient.invalidateQueries({ queryKey: getListWorksQueryKey() });
+      toast({ title: `+${addViews} visualizações adicionadas` });
+    } catch {
+      toast({ title: 'Erro', variant: 'destructive' });
+    }
+  };
+
+  const addToTop10 = async (work: typeof allWorks[0]) => {
+    const minViews = top10 && top10.length >= 10 ? (top10[9]?.viewCount ?? 0) + 1 : 1;
+    try {
+      await updateWork.mutateAsync({ id: work.id, data: { viewCount: minViews } });
+      queryClient.invalidateQueries({ queryKey: getGetTop10QueryKey() });
+      queryClient.invalidateQueries({ queryKey: getListWorksQueryKey() });
+      setSearch('');
+      setAddingWork(false);
+      toast({ title: `"${work.title}" adicionado ao Top 10` });
+    } catch {
+      toast({ title: 'Erro', variant: 'destructive' });
+    }
+  };
+
   if (isLoading) return <div className="py-10 flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
   return (
-    <div className="space-y-4">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
-        <Input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar obra por título..."
-          className="pl-9 bg-zinc-900/50 border-white/10 text-white placeholder:text-zinc-500 focus-visible:ring-primary"
-        />
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-amber-400" /> Top 10
+          </h2>
+          <p className="text-zinc-500 text-sm">Controle o ranking das obras mais populares. O ranking é baseado em visualizações.</p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setAddingWork(v => !v)}
+          className="border-white/10 text-zinc-300 hover:text-white gap-1.5"
+        >
+          <Plus className="h-4 w-4" />
+          Adicionar ao Top 10
+        </Button>
       </div>
-    <div className="rounded-xl border border-white/10 bg-zinc-900/50 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left text-zinc-300">
-          <thead className="text-xs uppercase bg-white/5 text-zinc-400 border-b border-white/10">
-            <tr>
-              <th className="px-6 py-4">Obra</th>
-              <th className="px-6 py-4">Tipo</th>
-              <th className="px-6 py-4">Status</th>
-              <th className="px-6 py-4 text-right">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredWorks.length === 0 && search && (
-              <tr>
-                <td colSpan={4} className="px-6 py-10 text-center text-zinc-500">Nenhuma obra encontrada para "{search}".</td>
-              </tr>
-            )}
-            {filteredWorks.map((work) => (
-              <tr key={work.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                <td className="px-6 py-4 font-medium text-white">
-                  <div className="flex items-center gap-3">
+
+      {addingWork && (
+        <Card className="bg-zinc-900/60 border-white/8">
+          <CardContent className="p-4 space-y-3">
+            <p className="text-sm text-zinc-400">Busque uma obra para incluir no Top 10:</p>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 pointer-events-none" />
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar por título..."
+                className="pl-9 bg-zinc-900 border-white/10"
+                autoFocus
+              />
+            </div>
+            {filteredWorks.length > 0 && (
+              <div className="space-y-1">
+                {filteredWorks.map(work => (
+                  <button
+                    key={work.id}
+                    onClick={() => addToTop10(work)}
+                    className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors text-left"
+                  >
                     <img
                       src={work.customThumbnailUrl || tmdbPoster(work.posterPath, 'w92')}
-                      className="w-10 h-14 object-cover rounded bg-zinc-800 shrink-0"
+                      className="w-8 h-11 object-cover rounded bg-zinc-800 shrink-0"
                       alt=""
                     />
                     <div>
-                      <p className="line-clamp-1">{work.title}</p>
-                      <p className="text-xs text-zinc-500 font-normal">{work.releaseYear}</p>
+                      <p className="text-sm font-medium text-white">{work.title}</p>
+                      <p className="text-xs text-zinc-500">{(work.viewCount ?? 0).toLocaleString()} views</p>
                     </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 uppercase text-xs">{work.type}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 rounded text-xs ${work.status === 'ongoing' ? 'bg-green-500/20 text-green-400' : work.status === 'upcoming' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-zinc-800 text-zinc-400'}`}>
-                    {work.status === 'ongoing' ? 'Em lançamento' : work.status === 'upcoming' ? 'Em breve' : 'Completo'}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center justify-end gap-1">
-                    <EpisodesManager work={work} />
-                    <EditWorkDialog work={work} onUpdated={() => queryClient.invalidateQueries({ queryKey: getListWorksQueryKey() })} />
-                    <Button variant="ghost" size="icon" className="text-zinc-400 hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(work.id)}>
-                      <Trash2 className="h-4 w-4" />
+                  </button>
+                ))}
+              </div>
+            )}
+            {search && filteredWorks.length === 0 && (
+              <p className="text-sm text-zinc-500 py-2">Nenhuma obra encontrada fora do Top 10.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="space-y-2">
+        {(top10 ?? []).map((work, idx) => (
+          <div
+            key={work.id}
+            className={`flex items-center gap-4 p-3 rounded-xl border transition-colors ${idx === 0 ? 'border-amber-500/30 bg-amber-500/5' : idx === 1 ? 'border-zinc-500/30 bg-zinc-500/5' : idx === 2 ? 'border-orange-700/30 bg-orange-700/5' : 'border-white/8 bg-zinc-900/40'}`}
+          >
+            <div className={`text-3xl font-black w-10 text-center shrink-0 ${idx === 0 ? 'text-amber-400' : idx === 1 ? 'text-zinc-400' : idx === 2 ? 'text-orange-600' : 'text-zinc-600'}`}>
+              {idx + 1}
+            </div>
+            <img
+              src={work.customThumbnailUrl || tmdbPoster(work.posterPath, 'w92')}
+              className="w-10 h-14 object-cover rounded bg-zinc-800 shrink-0"
+              alt=""
+            />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-white truncate">{work.title}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Eye className="h-3 w-3 text-zinc-500" />
+                {editingId === work.id ? (
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      type="number"
+                      value={editValue}
+                      onChange={e => setEditValue(e.target.value)}
+                      className="h-6 w-28 bg-zinc-800 border-white/20 text-xs px-2"
+                      autoFocus
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') saveViewCount(work.id);
+                        if (e.key === 'Escape') setEditingId(null);
+                      }}
+                    />
+                    <Button size="sm" className="h-6 px-2 text-xs bg-primary/90 hover:bg-primary text-white" onClick={() => saveViewCount(work.id)} disabled={updateWork.isPending}>
+                      {updateWork.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-zinc-400" onClick={() => setEditingId(null)}>
+                      <X className="h-3 w-3" />
                     </Button>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                ) : (
+                  <button
+                    onClick={() => startEdit(work.id, work.viewCount)}
+                    className="text-xs text-zinc-400 hover:text-white transition-colors flex items-center gap-1"
+                    title="Clique para editar"
+                  >
+                    {work.viewCount.toLocaleString()} visualizações
+                    <Edit className="h-3 w-3 opacity-50" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                onClick={() => boostWork(work.id, work.viewCount, 100)}
+                title="+100 visualizações"
+              >
+                +100
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                onClick={() => boostWork(work.id, work.viewCount, 1000)}
+                title="+1000 visualizações"
+              >
+                +1K
+              </Button>
+            </div>
+          </div>
+        ))}
+
+        {(top10 ?? []).length === 0 && (
+          <div className="text-center py-12 text-zinc-500">
+            <Trophy className="h-10 w-10 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">Nenhuma obra com visualizações ainda.</p>
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+function AdminSidebar({ active, onChange }: { active: AdminTab; onChange: (tab: AdminTab) => void }) {
+  return (
+    <aside className="hidden lg:flex flex-col w-60 shrink-0">
+      <div className="sticky top-20 space-y-1">
+        <div className="px-3 pb-3 mb-2 border-b border-white/8">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">Administração</p>
+        </div>
+        {NAV_ITEMS.map(item => (
+          <button
+            key={item.id}
+            onClick={() => onChange(item.id)}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              active === item.id
+                ? item.accent
+                  ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                  : 'bg-white/10 text-white'
+                : item.accent
+                  ? 'text-primary hover:bg-primary/10'
+                  : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+            }`}
+          >
+            <span className={active === item.id && !item.accent ? 'text-primary' : ''}>{item.icon}</span>
+            {item.label}
+            {item.id === 'top10' && (
+              <span className="ml-auto text-[10px] bg-amber-500/20 text-amber-400 font-bold px-1.5 py-0.5 rounded">RANK</span>
+            )}
+          </button>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+function MobileNavBar({ active, onChange }: { active: AdminTab; onChange: (tab: AdminTab) => void }) {
+  const [open, setOpen] = useState(false);
+  const current = NAV_ITEMS.find(n => n.id === active);
+  return (
+    <div className="lg:hidden mb-6">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-zinc-900/70 border border-white/10 text-white"
+      >
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          {current?.icon}
+          {current?.label}
+        </div>
+        <Menu className="h-4 w-4 text-zinc-400" />
+      </button>
+      {open && (
+        <div className="mt-1 rounded-xl bg-zinc-900/90 border border-white/10 overflow-hidden shadow-xl">
+          {NAV_ITEMS.map(item => (
+            <button
+              key={item.id}
+              onClick={() => { onChange(item.id); setOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+                active === item.id ? 'bg-white/10 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 export default function AdminPanel() {
+  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+
   return (
     <Layout>
       <ProtectedRoute requireAdmin>
-        <div className="container mx-auto px-4 py-8 md:py-12 mt-16">
+        <div className="container mx-auto px-4 py-8 md:py-10 mt-14">
           <div className="mb-8">
-            <h1 className="font-heading text-3xl font-bold text-white">Painel Administrativo</h1>
-            <p className="text-zinc-400 mt-2">Gerencie o catálogo, episódios e configurações da plataforma.</p>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="h-8 w-1 rounded-full bg-primary" />
+              <h1 className="font-heading text-3xl font-black text-white">Painel Admin</h1>
+            </div>
+            <p className="text-zinc-500 ml-4">Gerencie o catálogo, episódios e configurações da plataforma.</p>
           </div>
-          <Tabs defaultValue="dashboard" className="w-full">
-            <TabsList className="bg-zinc-900/80 border border-white/10 p-1 mb-8 w-full max-w-md grid grid-cols-3">
-              <TabsTrigger value="dashboard" className="data-[state=active]:bg-white/10 data-[state=active]:text-white">Resumo</TabsTrigger>
-              <TabsTrigger value="catalog" className="data-[state=active]:bg-white/10 data-[state=active]:text-white">Catálogo</TabsTrigger>
-              <TabsTrigger value="add" className="data-[state=active]:bg-primary data-[state=active]:text-white">Adicionar</TabsTrigger>
-            </TabsList>
-            <TabsContent value="dashboard" className="outline-none"><DashboardTab /></TabsContent>
-            <TabsContent value="catalog" className="outline-none"><CatalogTab /></TabsContent>
-            <TabsContent value="add" className="outline-none"><AddWorkTab /></TabsContent>
-          </Tabs>
+
+          <div className="flex gap-8 items-start">
+            <AdminSidebar active={activeTab} onChange={setActiveTab} />
+            <main className="flex-1 min-w-0">
+              <MobileNavBar active={activeTab} onChange={setActiveTab} />
+              {activeTab === 'dashboard' && <DashboardTab />}
+              {activeTab === 'catalog' && <CatalogTab />}
+              {activeTab === 'add' && <AddWorkTab />}
+              {activeTab === 'top10' && <Top10Tab />}
+            </main>
+          </div>
         </div>
       </ProtectedRoute>
     </Layout>

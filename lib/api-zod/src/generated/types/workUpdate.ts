@@ -26,4 +26,6 @@ export interface WorkUpdate {
   genres?: string[];
   /** @nullable */
   rating?: number | null;
+  /** @nullable */
+  viewCount?: number | null;
 }

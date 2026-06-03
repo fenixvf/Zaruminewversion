@@ -24,7 +24,6 @@ import type {
   EpisodeInput,
   EpisodeUpdate,
   HealthStatus,
-  LinkResolveResult,
   ListRecentWorksParams,
   ListWorksParams,
   SiteStats,
@@ -809,6 +808,152 @@ export const useAddEpisode = <TError = ErrorType<unknown>,
       return useMutation(getAddEpisodeMutationOptions(options));
     }
 
+export const getUpdateEpisodeUrl = (workId: number,
+    episodeId: number,) => {
+
+
+
+
+  return `/api/works/${workId}/episodes/${episodeId}`
+}
+
+/**
+ * @summary Update an episode (admin)
+ */
+export const updateEpisode = async (workId: number,
+    episodeId: number,
+    episodeUpdate: EpisodeUpdate, options?: RequestInit): Promise<Episode> => {
+
+  return customFetch<Episode>(getUpdateEpisodeUrl(workId,episodeId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      episodeUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateEpisodeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEpisode>>, TError,{workId: number;episodeId: number;data: BodyType<EpisodeUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateEpisode>>, TError,{workId: number;episodeId: number;data: BodyType<EpisodeUpdate>}, TContext> => {
+
+const mutationKey = ['updateEpisode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateEpisode>>, {workId: number;episodeId: number;data: BodyType<EpisodeUpdate>}> = (props) => {
+          const {workId,episodeId,data} = props ?? {};
+
+          return  updateEpisode(workId,episodeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateEpisodeMutationResult = NonNullable<Awaited<ReturnType<typeof updateEpisode>>>
+    export type UpdateEpisodeMutationBody = BodyType<EpisodeUpdate>
+    export type UpdateEpisodeMutationError = ErrorType<void>
+
+    /**
+ * @summary Update an episode (admin)
+ */
+export const useUpdateEpisode = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEpisode>>, TError,{workId: number;episodeId: number;data: BodyType<EpisodeUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateEpisode>>,
+        TError,
+        {workId: number;episodeId: number;data: BodyType<EpisodeUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateEpisodeMutationOptions(options));
+    }
+
+export const getDeleteEpisodeUrl = (workId: number,
+    episodeId: number,) => {
+
+
+
+
+  return `/api/works/${workId}/episodes/${episodeId}`
+}
+
+/**
+ * @summary Delete an episode (admin)
+ */
+export const deleteEpisode = async (workId: number,
+    episodeId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteEpisodeUrl(workId,episodeId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteEpisodeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEpisode>>, TError,{workId: number;episodeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteEpisode>>, TError,{workId: number;episodeId: number}, TContext> => {
+
+const mutationKey = ['deleteEpisode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteEpisode>>, {workId: number;episodeId: number}> = (props) => {
+          const {workId,episodeId} = props ?? {};
+
+          return  deleteEpisode(workId,episodeId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteEpisodeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteEpisode>>>
+
+    export type DeleteEpisodeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete an episode (admin)
+ */
+export const useDeleteEpisode = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteEpisode>>, TError,{workId: number;episodeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteEpisode>>,
+        TError,
+        {workId: number;episodeId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteEpisodeMutationOptions(options));
+    }
+
 export const getRecordViewUrl = (id: number,) => {
 
 
@@ -878,92 +1023,6 @@ export const useRecordView = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getRecordViewMutationOptions(options));
     }
-
-export const getUpdateEpisodeUrl = (workId: number, episodeId: number) => {
-  return `/api/works/${workId}/episodes/${episodeId}`
-}
-
-export const updateEpisode = async (workId: number, episodeId: number, episodeUpdate: EpisodeUpdate, options?: RequestInit): Promise<Episode> => {
-  return customFetch<Episode>(getUpdateEpisodeUrl(workId, episodeId), {
-    ...options,
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(episodeUpdate),
-  });
-}
-
-export const getUpdateEpisodeMutationOptions = <TError = ErrorType<unknown>, TContext = unknown>(
-  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof updateEpisode>>, TError, { workId: number; episodeId: number; data: BodyType<EpisodeUpdate> }, TContext>, request?: SecondParameter<typeof customFetch> }
-): UseMutationOptions<Awaited<ReturnType<typeof updateEpisode>>, TError, { workId: number; episodeId: number; data: BodyType<EpisodeUpdate> }, TContext> => {
-  const mutationKey = ['updateEpisode'];
-  const { mutation: mutationOptions, request: requestOptions } = options ?
-    options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-    options : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateEpisode>>, { workId: number; episodeId: number; data: BodyType<EpisodeUpdate> }> = (props) => {
-    const { workId, episodeId, data } = props ?? {};
-    return updateEpisode(workId, episodeId, data, requestOptions);
-  };
-  return { mutationFn, ...mutationOptions };
-}
-
-export type UpdateEpisodeMutationResult = NonNullable<Awaited<ReturnType<typeof updateEpisode>>>
-export type UpdateEpisodeMutationBody = BodyType<EpisodeUpdate>
-export type UpdateEpisodeMutationError = ErrorType<unknown>
-
-export const useUpdateEpisode = <TError = ErrorType<unknown>, TContext = unknown>(
-  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof updateEpisode>>, TError, { workId: number; episodeId: number; data: BodyType<EpisodeUpdate> }, TContext>, request?: SecondParameter<typeof customFetch> }
-): UseMutationResult<Awaited<ReturnType<typeof updateEpisode>>, TError, { workId: number; episodeId: number; data: BodyType<EpisodeUpdate> }, TContext> => {
-  return useMutation(getUpdateEpisodeMutationOptions(options));
-}
-
-export const getDeleteEpisodeUrl = (workId: number, episodeId: number) => {
-  return `/api/works/${workId}/episodes/${episodeId}`
-}
-
-export const deleteEpisode = async (workId: number, episodeId: number, options?: RequestInit): Promise<void> => {
-  return customFetch<void>(getDeleteEpisodeUrl(workId, episodeId), {
-    ...options,
-    method: 'DELETE',
-  });
-}
-
-export const getDeleteEpisodeMutationOptions = <TError = ErrorType<unknown>, TContext = unknown>(
-  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteEpisode>>, TError, { workId: number; episodeId: number }, TContext>, request?: SecondParameter<typeof customFetch> }
-): UseMutationOptions<Awaited<ReturnType<typeof deleteEpisode>>, TError, { workId: number; episodeId: number }, TContext> => {
-  const mutationKey = ['deleteEpisode'];
-  const { mutation: mutationOptions, request: requestOptions } = options ?
-    options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-    options : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteEpisode>>, { workId: number; episodeId: number }> = (props) => {
-    const { workId, episodeId } = props ?? {};
-    return deleteEpisode(workId, episodeId, requestOptions);
-  };
-  return { mutationFn, ...mutationOptions };
-}
-
-export type DeleteEpisodeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteEpisode>>>
-export type DeleteEpisodeMutationError = ErrorType<unknown>
-
-export const useDeleteEpisode = <TError = ErrorType<unknown>, TContext = unknown>(
-  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof deleteEpisode>>, TError, { workId: number; episodeId: number }, TContext>, request?: SecondParameter<typeof customFetch> }
-): UseMutationResult<Awaited<ReturnType<typeof deleteEpisode>>, TError, { workId: number; episodeId: number }, TContext> => {
-  return useMutation(getDeleteEpisodeMutationOptions(options));
-}
-
-export const getResolveLinkUrl = () => {
-  return `/api/links/resolve`
-}
-
-export const resolveLink = async (url: string, options?: RequestInit): Promise<LinkResolveResult> => {
-  return customFetch<LinkResolveResult>(`${getResolveLinkUrl()}?url=${encodeURIComponent(url)}`, {
-    ...options,
-    method: 'GET',
-  });
-}
 
 export const getGetTop10Url = () => {
 

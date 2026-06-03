@@ -140,6 +140,7 @@ router.put("/works/:id", async (req, res): Promise<void> => {
   if (parsed.data.backdropPath != null) updateData.backdropPath = parsed.data.backdropPath;
   if (parsed.data.genres != null) updateData.genres = parsed.data.genres;
   if (parsed.data.rating != null) updateData.rating = parsed.data.rating;
+  if (parsed.data.viewCount != null) updateData.viewCount = parsed.data.viewCount;
 
   const [work] = await db
     .update(worksTable)

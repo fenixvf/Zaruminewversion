@@ -209,6 +209,56 @@ paths:
               schema:
                 $ref: "#/components/schemas/Episode"
 
+  /works/{workId}/episodes/{episodeId}:
+    put:
+      operationId: updateEpisode
+      tags: [works]
+      summary: Update an episode (admin)
+      parameters:
+        - name: workId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: episodeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EpisodeUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Episode"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteEpisode
+      tags: [works]
+      summary: Delete an episode (admin)
+      parameters:
+        - name: workId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: episodeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
   /works/{id}/view:
     post:
       operationId: recordView
@@ -375,6 +425,8 @@ components:
             type: string
         rating:
           type: ["number", "null"]
+        viewCount:
+          type: ["integer", "null"]
 
     WorksListResponse:
       type: object
@@ -439,6 +491,22 @@ components:
         airDate:
           type: ["string", "null"]
         tmdbEpisodeId:
+          type: ["integer", "null"]
+
+    EpisodeUpdate:
+      type: object
+      properties:
+        episodeNumber:
+          type: ["integer", "null"]
+        title:
+          type: ["string", "null"]
+        synopsis:
+          type: ["string", "null"]
+        customThumbnailUrl:
+          type: ["string", "null"]
+        videoSlug:
+          type: ["string", "null"]
+        duration:
           type: ["integer", "null"]
 
     EpisodeInput:

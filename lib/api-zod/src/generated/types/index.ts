@@ -8,6 +8,7 @@
 
 export * from './episode';
 export * from './episodeInput';
+export * from './episodeUpdate';
 export * from './healthStatus';
 export * from './listRecentWorksParams';
 export * from './listWorksParams';

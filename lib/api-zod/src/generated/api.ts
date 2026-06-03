@@ -78,6 +78,64 @@ export const CreateWorkBody = zod.object({
 
 
 /**
+ * @summary Recently added works
+ */
+export const listRecentWorksQueryLimitDefault = 12;
+
+export const ListRecentWorksQueryParams = zod.object({
+  "limit": zod.coerce.number().default(listRecentWorksQueryLimitDefault)
+})
+
+export const ListRecentWorksResponseItem = zod.object({
+  "id": zod.number(),
+  "tmdbId": zod.number(),
+  "title": zod.string(),
+  "originalTitle": zod.string().nullish(),
+  "synopsis": zod.string().nullish(),
+  "posterPath": zod.string().nullish(),
+  "backdropPath": zod.string().nullish(),
+  "customBannerUrl": zod.string().nullish(),
+  "customThumbnailUrl": zod.string().nullish(),
+  "type": zod.enum(['tv', 'movie']),
+  "status": zod.enum(['ongoing', 'completed', 'upcoming']),
+  "genres": zod.array(zod.string()).optional(),
+  "releaseYear": zod.number().nullish(),
+  "totalEpisodes": zod.number().nullish(),
+  "rating": zod.number().nullish(),
+  "isFeatured": zod.boolean().optional(),
+  "viewCount": zod.number().optional(),
+  "createdAt": zod.string().optional()
+})
+export const ListRecentWorksResponse = zod.array(ListRecentWorksResponseItem)
+
+
+/**
+ * @summary Featured/banner works
+ */
+export const ListFeaturedWorksResponseItem = zod.object({
+  "id": zod.number(),
+  "tmdbId": zod.number(),
+  "title": zod.string(),
+  "originalTitle": zod.string().nullish(),
+  "synopsis": zod.string().nullish(),
+  "posterPath": zod.string().nullish(),
+  "backdropPath": zod.string().nullish(),
+  "customBannerUrl": zod.string().nullish(),
+  "customThumbnailUrl": zod.string().nullish(),
+  "type": zod.enum(['tv', 'movie']),
+  "status": zod.enum(['ongoing', 'completed', 'upcoming']),
+  "genres": zod.array(zod.string()).optional(),
+  "releaseYear": zod.number().nullish(),
+  "totalEpisodes": zod.number().nullish(),
+  "rating": zod.number().nullish(),
+  "isFeatured": zod.boolean().optional(),
+  "viewCount": zod.number().optional(),
+  "createdAt": zod.string().optional()
+})
+export const ListFeaturedWorksResponse = zod.array(ListFeaturedWorksResponseItem)
+
+
+/**
  * @summary Get a work by ID
  */
 export const GetWorkParams = zod.object({
@@ -123,7 +181,29 @@ export const UpdateWorkBody = zod.object({
   "posterPath": zod.string().nullish(),
   "backdropPath": zod.string().nullish(),
   "genres": zod.array(zod.string()).optional(),
-  "rating": zod.number().nullish()
+  "rating": zod.number().nullish(),
+  "viewCount": zod.number().nullish()
+})
+
+export const UpdateWorkResponse = zod.object({
+  "id": zod.number(),
+  "tmdbId": zod.number(),
+  "title": zod.string(),
+  "originalTitle": zod.string().nullish(),
+  "synopsis": zod.string().nullish(),
+  "posterPath": zod.string().nullish(),
+  "backdropPath": zod.string().nullish(),
+  "customBannerUrl": zod.string().nullish(),
+  "customThumbnailUrl": zod.string().nullish(),
+  "type": zod.enum(['tv', 'movie']),
+  "status": zod.enum(['ongoing', 'completed', 'upcoming']),
+  "genres": zod.array(zod.string()).optional(),
+  "releaseYear": zod.number().nullish(),
+  "totalEpisodes": zod.number().nullish(),
+  "rating": zod.number().nullish(),
+  "isFeatured": zod.boolean().optional(),
+  "viewCount": zod.number().optional(),
+  "createdAt": zod.string().optional()
 })
 
 
@@ -189,12 +269,27 @@ export const UpdateEpisodeParams = zod.object({
 })
 
 export const UpdateEpisodeBody = zod.object({
-  "episodeNumber": zod.number().optional(),
-  "title": zod.string().optional(),
+  "episodeNumber": zod.number().nullish(),
+  "title": zod.string().nullish(),
   "synopsis": zod.string().nullish(),
   "customThumbnailUrl": zod.string().nullish(),
   "videoSlug": zod.string().nullish(),
   "duration": zod.number().nullish()
+})
+
+export const UpdateEpisodeResponse = zod.object({
+  "id": zod.number(),
+  "workId": zod.number(),
+  "episodeNumber": zod.number(),
+  "seasonNumber": zod.number().nullish(),
+  "title": zod.string(),
+  "synopsis": zod.string().nullish(),
+  "thumbnailPath": zod.string().nullish(),
+  "customThumbnailUrl": zod.string().nullish(),
+  "videoSlug": zod.string().nullish(),
+  "duration": zod.number().nullish(),
+  "airDate": zod.string().nullish(),
+  "tmdbEpisodeId": zod.number().nullish()
 })
 
 
@@ -245,3 +340,5 @@ export const GetSiteStatsResponse = zod.object({
   "ongoingCount": zod.number().optional(),
   "completedCount": zod.number().optional()
 })
+
+
