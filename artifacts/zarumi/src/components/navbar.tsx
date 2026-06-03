@@ -110,19 +110,11 @@ export function Navbar() {
               </div>
 
               <div className="relative z-10 flex flex-col h-full">
-                <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/10">
+                <div className="flex items-center px-5 pt-5 pb-4 border-b border-white/10">
                   <Link href="/" onClick={() => setSheetOpen(false)} className="flex items-center gap-2.5 transition-opacity hover:opacity-80">
                     <img src={logoImg} alt="Zarumi" className="h-8 w-8 object-contain" />
                     <span className="font-heading text-xl font-black uppercase tracking-tight text-white">Zarumi</span>
                   </Link>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setSheetOpen(false)}
-                    className="h-8 w-8 rounded-full text-zinc-400 hover:text-white hover:bg-white/10"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
                 </div>
 
                 <form onSubmit={handleMobileSearch} className="relative mx-4 mt-4">
