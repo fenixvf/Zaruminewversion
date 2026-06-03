@@ -322,6 +322,11 @@ async function parseSuccessBody(
   }
 }
 
+export async function resolveLink(url: string): Promise<{ resolvedUrl: string }> {
+  const encoded = encodeURIComponent(url);
+  return customFetch<{ resolvedUrl: string }>(`/api/links/resolve?url=${encoded}`);
+}
+
 export async function customFetch<T = unknown>(
   input: RequestInfo | URL,
   options: CustomFetchOptions = {},

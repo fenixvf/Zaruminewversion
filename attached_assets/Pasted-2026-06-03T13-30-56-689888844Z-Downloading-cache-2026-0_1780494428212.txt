@@ -1,0 +1,49 @@
+2026-06-03T13:30:56.689888844Z ==> Downloading cache...
+2026-06-03T13:30:56.730907187Z ==> Cloning from https://github.com/fenixvf/Zaruminewversion
+2026-06-03T13:30:57.416986316Z ==> Checking out commit b9f323d273064827687cd386a69e615f272c926f in branch main
+2026-06-03T13:31:04.415185116Z ==> Downloaded 134MB in 4s. Extraction took 4s.
+2026-06-03T13:31:15.957125811Z ==> Requesting Node.js version 24
+2026-06-03T13:31:16.195085391Z ==> Using Node.js version 24.16.0 via /opt/render/project/src/.node-version
+2026-06-03T13:31:16.195103211Z ==> Docs on specifying a Node.js version: https://render.com/docs/node-version
+2026-06-03T13:31:16.195259275Z ==> Installing Node.js version 24.16.0...
+2026-06-03T13:31:17.497677339Z ==> Running build command 'corepack enable && pnpm install --frozen-lockfile && BASE_PATH=/ pnpm --filter @workspace/zarumi run build && pnpm --filter @workspace/api-server run build'...
+2026-06-03T13:31:25.482926602Z 
+2026-06-03T13:31:25.482963203Z > @workspace/zarumi@0.0.0 build /opt/render/project/src/artifacts/zarumi
+2026-06-03T13:31:25.482970323Z > vite build --config vite.config.ts
+2026-06-03T13:31:25.482974373Z 
+2026-06-03T13:31:25.793878459Z vite v7.3.3 building client environment for production...
+2026-06-03T13:31:25.867278827Z transforming...
+2026-06-03T13:31:26.26467217Z src/components/ui/tooltip.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+2026-06-03T13:31:26.79781638Z src/components/ui/label.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+2026-06-03T13:31:27.662947527Z src/components/ui/select.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+2026-06-03T13:31:28.439682159Z src/components/ui/avatar.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+2026-06-03T13:31:28.44050498Z src/components/ui/sheet.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+2026-06-03T13:31:28.44131929Z src/components/ui/dropdown-menu.tsx (2:0): Error when using sourcemap for reporting an error: Can't resolve original location of error.
+2026-06-03T13:31:28.664208961Z ✓ 2265 modules transformed.
+2026-06-03T13:31:28.665872403Z ✗ Build failed in 2.84s
+2026-06-03T13:31:28.665931764Z error during build:
+2026-06-03T13:31:28.665947955Z src/components/video-player.tsx (3:9): "resolveLink" is not exported by "../../lib/api-client-react/src/index.ts", imported by "src/components/video-player.tsx".
+2026-06-03T13:31:28.665955405Z file: /opt/render/project/src/artifacts/zarumi/src/components/video-player.tsx:3:9
+2026-06-03T13:31:28.665960995Z 
+2026-06-03T13:31:28.665967965Z 1: import React, { useRef, useState, useEffect, useCallback } from 'react';
+2026-06-03T13:31:28.665975005Z 2: import { Loader2, AlertCircle, Play, Pause, Volume2, VolumeX, Maximize, Minimize, RotateCcw, RotateCw, ExternalLink, ...
+2026-06-03T13:31:28.665979405Z 3: import { resolveLink } from '@workspace/api-client-react';
+2026-06-03T13:31:28.665983196Z             ^
+2026-06-03T13:31:28.665987106Z 4: 
+2026-06-03T13:31:28.665992796Z 5: interface VideoPlayerProps {
+2026-06-03T13:31:28.665996546Z 
+2026-06-03T13:31:28.666001276Z     at getRollupError (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.60.3/node_modules/rollup/dist/es/shared/parseAst.js:406:41)
+2026-06-03T13:31:28.666019967Z     at error (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.60.3/node_modules/rollup/dist/es/shared/parseAst.js:402:42)
+2026-06-03T13:31:28.666022687Z     at Module.error (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.60.3/node_modules/rollup/dist/es/shared/node-entry.js:17390:16)
+2026-06-03T13:31:28.666025757Z     at Module.traceVariable (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.60.3/node_modules/rollup/dist/es/shared/node-entry.js:17823:29)
+2026-06-03T13:31:28.666028247Z     at ModuleScope.findVariable (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.60.3/node_modules/rollup/dist/es/shared/node-entry.js:15413:39)
+2026-06-03T13:31:28.666030687Z     at FunctionScope.findVariable (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.60.3/node_modules/rollup/dist/es/shared/node-entry.js:5682:38)
+2026-06-03T13:31:28.666033227Z     at FunctionBodyScope.findVariable (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.60.3/node_modules/rollup/dist/es/shared/node-entry.js:5682:38)
+2026-06-03T13:31:28.666035727Z     at ReturnValueScope.findVariable (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.60.3/node_modules/rollup/dist/es/shared/node-entry.js:5682:38)
+2026-06-03T13:31:28.666038147Z     at FunctionBodyScope.findVariable (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.60.3/node_modules/rollup/dist/es/shared/node-entry.js:5682:38)
+2026-06-03T13:31:28.666040717Z     at Identifier.bind (file:///opt/render/project/src/node_modules/.pnpm/rollup@4.60.3/node_modules/rollup/dist/es/shared/node-entry.js:5449:40)
+2026-06-03T13:31:28.743940408Z /opt/render/project/src/artifacts/zarumi:
+2026-06-03T13:31:28.743967639Z  ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/zarumi@0.0.0 build: `vite build --config vite.config.ts`
+2026-06-03T13:31:28.743973019Z Exit status 1
+2026-06-03T13:31:28.796430379Z ==> Build failed 😞
+2026-06-03T13:31:28.79644973Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys

@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-20", "web", "bash"]
 
 [deployment]
 router = "application"
@@ -33,7 +33,7 @@ args = "PORT=8080 pnpm run --filter @workspace/zarumi dev & PORT=8081 pnpm run -
 waitForPort = 8080
 
 [agent]
-stack = "PNPM_WORKSPACE"
+stack = "BEST_EFFORT_FALLBACK"
 expertMode = true
 
 [postMerge]
@@ -63,3 +63,6 @@ VITE_FIREBASE_STORAGE_BUCKET = "zarumi.firebasestorage.app"
 VITE_FIREBASE_MESSAGING_SENDER_ID = "257898204309"
 VITE_FIREBASE_APP_ID = "1:257898204309:web:bdeae590b27252adc69f9c"
 VITE_TMDB_API_KEY = "803e3b5c72e95531f8c244fe582e461d"
+
+[nix]
+channel = "stable-25_05"
