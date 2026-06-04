@@ -480,6 +480,10 @@ function EpisodesManager({ work }: { work: Work }) {
   const [panel, setPanel] = useState<'list' | 'add' | 'edit' | 'tmdb' | 'vlm'>('list');
   const [editingEpisode, setEditingEpisode] = useState<Episode | null>(null);
 
+  const [tmdbLookupId, setTmdbLookupId] = useState<number>(work.tmdbId);
+  const [tmdbLookupInput, setTmdbLookupInput] = useState(String(work.tmdbId));
+  const [dbSeasonTarget, setDbSeasonTarget] = useState('');
+
   const [vlmUrl, setVlmUrl] = useState('');
   const [vlmImporting, setVlmImporting] = useState(false);
 
@@ -602,13 +606,14 @@ function EpisodesManager({ work }: { work: Work }) {
 
   const handleTmdbApply = async (
     episodeNumber: number,
-    seasonNumber: number,
+    tmdbSeasonNumber: number,
     thumbnailUrl: string,
     title: string,
     synopsis: string
   ) => {
+    const effectiveSeason = dbSeasonTarget ? parseInt(dbSeasonTarget, 10) : tmdbSeasonNumber;
     const existing =
-      episodes?.find(e => e.episodeNumber === episodeNumber && e.seasonNumber === seasonNumber) ??
+      episodes?.find(e => e.episodeNumber === episodeNumber && e.seasonNumber === effectiveSeason) ??
       episodes?.find(e => e.episodeNumber === episodeNumber && e.seasonNumber == null);
     if (existing) {
       try {
@@ -625,7 +630,7 @@ function EpisodesManager({ work }: { work: Work }) {
     } else {
       setAddForm({
         episodeNumber: String(episodeNumber),
-        seasonNumber: String(seasonNumber),
+        seasonNumber: String(effectiveSeason),
         title,
         duration: '',
         customThumbnailUrl: thumbnailUrl,
@@ -840,10 +845,50 @@ function EpisodesManager({ work }: { work: Work }) {
                 <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
               </Button>
               <span className="text-white font-semibold">Thumbnails do TMDB</span>
-              <span className="text-xs text-zinc-500 ml-1">— clique para aplicar na obra ou preencher o formulário</span>
             </div>
+
+            <div className="rounded-lg border border-white/8 bg-zinc-900/40 p-3 mb-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-zinc-400 text-xs">TMDB ID de busca</Label>
+                  <div className="flex gap-1.5">
+                    <Input
+                      value={tmdbLookupInput}
+                      onChange={e => setTmdbLookupInput(e.target.value)}
+                      placeholder={String(work.tmdbId)}
+                      className="bg-zinc-800 border-white/10 h-8 text-xs font-mono"
+                    />
+                    <Button
+                      size="sm"
+                      className="h-8 px-3 text-xs bg-blue-600 hover:bg-blue-500 text-white shrink-0"
+                      onClick={() => {
+                        const n = parseInt(tmdbLookupInput, 10);
+                        if (!isNaN(n) && n > 0) setTmdbLookupId(n);
+                        else toast({ title: 'ID inválido', description: 'Digite um número válido.', variant: 'destructive' });
+                      }}
+                    >
+                      Buscar
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-zinc-600">Se a temporada for uma entrada separada no TMDB, cole o ID dela aqui.</p>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-zinc-400 text-xs">Salvar como temporada nº</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={dbSeasonTarget}
+                    onChange={e => setDbSeasonTarget(e.target.value)}
+                    placeholder="Automático (usa a do TMDB)"
+                    className="bg-zinc-800 border-white/10 h-8 text-xs"
+                  />
+                  <p className="text-[10px] text-zinc-600">Força todos os EPs aplicados a pertencerem a esta temporada.</p>
+                </div>
+              </div>
+            </div>
+
             <TmdbEpisodePicker
-              tmdbId={work.tmdbId}
+              tmdbId={tmdbLookupId}
               episodes={episodes || []}
               onApply={handleTmdbApply}
             />
