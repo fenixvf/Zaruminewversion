@@ -5,6 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { setupAuth } from "./auth/replitAuth";
 
 const app: Express = express();
 
@@ -21,9 +22,12 @@ app.use(
     },
   }),
 );
-app.use(cors());
+
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+await setupAuth(app);
 
 app.use("/api", router);
 

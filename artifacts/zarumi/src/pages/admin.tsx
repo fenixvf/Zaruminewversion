@@ -612,15 +612,18 @@ function EpisodesManager({ work }: { work: Work }) {
     synopsis: string
   ) => {
     const effectiveSeason = dbSeasonTarget ? parseInt(dbSeasonTarget, 10) : tmdbSeasonNumber;
+
     const existing =
       episodes?.find(e => e.episodeNumber === episodeNumber && e.seasonNumber === effectiveSeason) ??
-      episodes?.find(e => e.episodeNumber === episodeNumber && e.seasonNumber == null);
+      episodes?.find(e => e.episodeNumber === episodeNumber && e.seasonNumber == null) ??
+      episodes?.find(e => e.episodeNumber === episodeNumber);
+
     if (existing) {
       try {
         await updateEpisode.mutateAsync({
           workId: work.id,
           episodeId: existing.id,
-          data: { customThumbnailUrl: thumbnailUrl }
+          data: { customThumbnailUrl: thumbnailUrl },
         });
         toast({ title: 'Thumbnail aplicada', description: `EP ${episodeNumber} — ${existing.title}` });
         queryClient.invalidateQueries({ queryKey: getListEpisodesQueryKey(work.id) });
@@ -628,16 +631,27 @@ function EpisodesManager({ work }: { work: Work }) {
         toast({ title: 'Erro', description: 'Falha ao aplicar thumbnail.', variant: 'destructive' });
       }
     } else {
-      setAddForm({
-        episodeNumber: String(episodeNumber),
-        seasonNumber: String(effectiveSeason),
-        title,
-        duration: '',
-        customThumbnailUrl: thumbnailUrl,
-        videoSlug: '',
-      });
-      toast({ title: 'Dados preenchidos', description: 'Complete o URL do vídeo e salve o episódio.' });
-      setPanel('add');
+      try {
+        await addEpisode.mutateAsync({
+          id: work.id,
+          data: {
+            episodeNumber,
+            seasonNumber: effectiveSeason,
+            title,
+            synopsis: synopsis || null,
+            customThumbnailUrl: thumbnailUrl,
+            videoSlug: null,
+          },
+        });
+        toast({
+          title: 'Episódio criado',
+          description: `EP ${episodeNumber} adicionado com thumbnail. Adicione o URL do vídeo pelo botão de edição.`,
+        });
+        queryClient.invalidateQueries({ queryKey: getListEpisodesQueryKey(work.id) });
+        queryClient.invalidateQueries({ queryKey: getGetSiteStatsQueryKey() });
+      } catch {
+        toast({ title: 'Erro', description: 'Falha ao criar episódio.', variant: 'destructive' });
+      }
     }
   };
 
