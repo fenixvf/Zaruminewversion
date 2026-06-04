@@ -498,6 +498,8 @@ components:
       properties:
         episodeNumber:
           type: ["integer", "null"]
+        seasonNumber:
+          type: ["integer", "null"]
         title:
           type: ["string", "null"]
         synopsis:

@@ -270,6 +270,7 @@ export const UpdateEpisodeParams = zod.object({
 
 export const UpdateEpisodeBody = zod.object({
   "episodeNumber": zod.number().nullish(),
+  "seasonNumber": zod.number().nullish(),
   "title": zod.string().nullish(),
   "synopsis": zod.string().nullish(),
   "customThumbnailUrl": zod.string().nullish(),
