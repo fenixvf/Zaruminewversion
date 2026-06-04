@@ -235,13 +235,14 @@ router.put("/works/:workId/episodes/:episodeId", async (req, res): Promise<void>
     return;
   }
 
+  const body = req.body as Record<string, unknown>;
   const updateData: Record<string, unknown> = {};
-  if (parsed.data.episodeNumber !== undefined && parsed.data.episodeNumber != null) updateData.episodeNumber = parsed.data.episodeNumber;
-  if (parsed.data.title !== undefined && parsed.data.title != null) updateData.title = parsed.data.title;
-  if (parsed.data.synopsis !== undefined) updateData.synopsis = parsed.data.synopsis ?? null;
-  if (parsed.data.customThumbnailUrl !== undefined) updateData.customThumbnailUrl = parsed.data.customThumbnailUrl ?? null;
-  if (parsed.data.videoSlug !== undefined) updateData.videoSlug = parsed.data.videoSlug ?? null;
-  if (parsed.data.duration !== undefined) updateData.duration = parsed.data.duration ?? null;
+  if ('episodeNumber' in body && parsed.data.episodeNumber != null) updateData.episodeNumber = parsed.data.episodeNumber;
+  if ('title' in body && parsed.data.title != null) updateData.title = parsed.data.title;
+  if ('synopsis' in body) updateData.synopsis = parsed.data.synopsis ?? null;
+  if ('customThumbnailUrl' in body) updateData.customThumbnailUrl = parsed.data.customThumbnailUrl ?? null;
+  if ('videoSlug' in body) updateData.videoSlug = parsed.data.videoSlug ?? null;
+  if ('duration' in body) updateData.duration = parsed.data.duration ?? null;
 
   const [episode] = await db
     .update(episodesTable)
