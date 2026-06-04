@@ -530,7 +530,7 @@ function EpisodesManager({ work }: { work: Work }) {
   });
 
   const [editForm, setEditForm] = useState({
-    episodeNumber: '', title: '', duration: '', customThumbnailUrl: '', videoSlug: '',
+    episodeNumber: '', seasonNumber: '', title: '', duration: '', customThumbnailUrl: '', videoSlug: '',
   });
   const [tmdbFetching, setTmdbFetching] = useState(false);
 
@@ -538,6 +538,7 @@ function EpisodesManager({ work }: { work: Work }) {
     setEditingEpisode(ep);
     setEditForm({
       episodeNumber: String(ep.episodeNumber),
+      seasonNumber: ep.seasonNumber != null ? String(ep.seasonNumber) : '',
       title: ep.title,
       duration: ep.duration ? String(ep.duration) : '',
       customThumbnailUrl: ep.customThumbnailUrl || '',
@@ -579,6 +580,7 @@ function EpisodesManager({ work }: { work: Work }) {
         episodeId: editingEpisode.id,
         data: {
           episodeNumber: parseInt(editForm.episodeNumber, 10),
+          seasonNumber: editForm.seasonNumber ? parseInt(editForm.seasonNumber, 10) : null,
           title: editForm.title,
           duration: editForm.duration ? parseInt(editForm.duration, 10) : null,
           customThumbnailUrl: editForm.customThumbnailUrl || null,
@@ -607,7 +609,7 @@ function EpisodesManager({ work }: { work: Work }) {
 
   const handleFetchTmdbForEdit = async () => {
     if (!editingEpisode) return;
-    const seasonNum = editingEpisode.seasonNumber ?? 1;
+    const seasonNum = editForm.seasonNumber ? parseInt(editForm.seasonNumber, 10) : (editingEpisode.seasonNumber ?? 1);
     const epNum = parseInt(editForm.episodeNumber, 10);
     if (!epNum) {
       toast({ title: 'Erro', description: 'Número do episódio inválido.', variant: 'destructive' });
@@ -843,7 +845,13 @@ function EpisodesManager({ work }: { work: Work }) {
               <span className="text-white font-semibold">Editando EP {editingEpisode.episodeNumber} — {editingEpisode.title}</span>
             </div>
             <form onSubmit={handleEdit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
+                {work.type !== 'movie' && (
+                  <div className="space-y-1.5">
+                    <Label className="text-zinc-400 text-xs">Temporada</Label>
+                    <Input type="number" value={editForm.seasonNumber} onChange={e => setEditForm(p => ({ ...p, seasonNumber: e.target.value }))} placeholder="Ex: 1" className="bg-zinc-900 border-white/10 h-9" />
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label className="text-zinc-400 text-xs">Nº do Episódio *</Label>
                   <Input required type="number" value={editForm.episodeNumber} onChange={e => setEditForm(p => ({ ...p, episodeNumber: e.target.value }))} className="bg-zinc-900 border-white/10 h-9" />
