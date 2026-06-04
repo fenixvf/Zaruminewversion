@@ -532,6 +532,7 @@ function EpisodesManager({ work }: { work: Work }) {
   const [editForm, setEditForm] = useState({
     episodeNumber: '', title: '', duration: '', customThumbnailUrl: '', videoSlug: '',
   });
+  const [tmdbFetching, setTmdbFetching] = useState(false);
 
   const openEdit = (ep: Episode) => {
     setEditingEpisode(ep);
@@ -601,6 +602,31 @@ function EpisodesManager({ work }: { work: Work }) {
       queryClient.invalidateQueries({ queryKey: getGetSiteStatsQueryKey() });
     } catch {
       toast({ title: 'Erro', description: 'Falha ao remover episódio.', variant: 'destructive' });
+    }
+  };
+
+  const handleFetchTmdbForEdit = async () => {
+    if (!editingEpisode) return;
+    const seasonNum = editingEpisode.seasonNumber ?? 1;
+    const epNum = parseInt(editForm.episodeNumber, 10);
+    if (!epNum) {
+      toast({ title: 'Erro', description: 'Número do episódio inválido.', variant: 'destructive' });
+      return;
+    }
+    setTmdbFetching(true);
+    try {
+      const data = await fetchTmdb(`/tv/${tmdbLookupId}/season/${seasonNum}/episode/${epNum}`);
+      const stillUrl = data.still_path ? tmdbStill(data.still_path, 'w300') : '';
+      setEditForm(p => ({
+        ...p,
+        title: data.name || p.title,
+        customThumbnailUrl: stillUrl || p.customThumbnailUrl,
+      }));
+      toast({ title: 'TMDB', description: 'Título e thumbnail preenchidos. URL do servidor preservada.' });
+    } catch (err: any) {
+      toast({ title: 'TMDB', description: err.message, variant: 'destructive' });
+    } finally {
+      setTmdbFetching(false);
     }
   };
 
@@ -828,7 +854,22 @@ function EpisodesManager({ work }: { work: Work }) {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-zinc-400 text-xs">Título *</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-zinc-400 text-xs">Título *</Label>
+                  {work.type === 'tv' && work.tmdbId && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleFetchTmdbForEdit}
+                      disabled={tmdbFetching}
+                      className="h-6 text-[11px] px-2 border-blue-500/40 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
+                    >
+                      {tmdbFetching ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Images className="h-3 w-3 mr-1" />}
+                      Buscar no TMDB
+                    </Button>
+                  )}
+                </div>
                 <Input required value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} className="bg-zinc-900 border-white/10 h-9" />
               </div>
               <div className="space-y-1.5">
