@@ -362,7 +362,7 @@ function TmdbEpisodePicker({ tmdbId, episodes, onApply }: {
     if (selectedSeason == null) return new Set<number>();
     return new Set(
       episodes
-        .filter(e => e.seasonNumber === selectedSeason || (selectedSeason === 1 && e.seasonNumber == null))
+        .filter(e => e.seasonNumber === selectedSeason || e.seasonNumber == null)
         .map(e => e.episodeNumber)
     );
   }, [episodes, selectedSeason]);
@@ -372,7 +372,7 @@ function TmdbEpisodePicker({ tmdbId, episodes, onApply }: {
     return new Set(
       episodes
         .filter(e =>
-          (e.seasonNumber === selectedSeason || (selectedSeason === 1 && e.seasonNumber == null))
+          (e.seasonNumber === selectedSeason || e.seasonNumber == null)
           && e.customThumbnailUrl
         )
         .map(e => e.episodeNumber)
@@ -607,10 +607,9 @@ function EpisodesManager({ work }: { work: Work }) {
     title: string,
     synopsis: string
   ) => {
-    const existing = episodes?.find(e =>
-      e.episodeNumber === episodeNumber &&
-      (e.seasonNumber === seasonNumber || (seasonNumber === 1 && e.seasonNumber == null))
-    );
+    const existing =
+      episodes?.find(e => e.episodeNumber === episodeNumber && e.seasonNumber === seasonNumber) ??
+      episodes?.find(e => e.episodeNumber === episodeNumber && e.seasonNumber == null);
     if (existing) {
       try {
         await updateEpisode.mutateAsync({
