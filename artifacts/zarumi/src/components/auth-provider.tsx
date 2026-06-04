@@ -1,15 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-
-interface ReplitUser {
-  id: string;
-  email: string | null;
-  firstName: string | null;
-  lastName: string | null;
-  profileImageUrl: string | null;
-}
+import { User, onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 interface AuthContextType {
-  user: ReplitUser | null;
+  user: User | null;
   isLoading: boolean;
   isAdmin: boolean;
 }
@@ -21,24 +15,16 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<ReplitUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/auth/user', { credentials: 'include' })
-      .then(res => {
-        if (res.status === 401) return null;
-        if (!res.ok) throw new Error('Failed to fetch user');
-        return res.json();
-      })
-      .then(data => {
-        setUser(data);
-        setIsLoading(false);
-      })
-      .catch(() => {
-        setUser(null);
-        setIsLoading(false);
-      });
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const isAdmin = user?.email === 'souzawalisonlopes52@gmail.com';
