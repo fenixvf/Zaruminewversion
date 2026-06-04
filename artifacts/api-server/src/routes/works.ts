@@ -238,6 +238,7 @@ router.put("/works/:workId/episodes/:episodeId", async (req, res): Promise<void>
   const body = req.body as Record<string, unknown>;
   const updateData: Record<string, unknown> = {};
   if ('episodeNumber' in body && parsed.data.episodeNumber != null) updateData.episodeNumber = parsed.data.episodeNumber;
+  if ('seasonNumber' in body) updateData.seasonNumber = parsed.data.seasonNumber ?? null;
   if ('title' in body && parsed.data.title != null) updateData.title = parsed.data.title;
   if ('synopsis' in body) updateData.synopsis = parsed.data.synopsis ?? null;
   if ('customThumbnailUrl' in body) updateData.customThumbnailUrl = parsed.data.customThumbnailUrl ?? null;
