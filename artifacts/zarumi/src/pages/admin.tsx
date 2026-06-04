@@ -532,7 +532,8 @@ function EpisodesManager({ work }: { work: Work }) {
   const [editForm, setEditForm] = useState({
     episodeNumber: '', seasonNumber: '', title: '', duration: '', customThumbnailUrl: '', videoSlug: '',
   });
-  const [tmdbFetching, setTmdbFetching] = useState(false);
+  const [showAddTmdb, setShowAddTmdb] = useState(false);
+  const [showEditTmdb, setShowEditTmdb] = useState(false);
 
   const openEdit = (ep: Episode) => {
     setEditingEpisode(ep);
@@ -604,31 +605,6 @@ function EpisodesManager({ work }: { work: Work }) {
       queryClient.invalidateQueries({ queryKey: getGetSiteStatsQueryKey() });
     } catch {
       toast({ title: 'Erro', description: 'Falha ao remover episódio.', variant: 'destructive' });
-    }
-  };
-
-  const handleFetchTmdbForEdit = async () => {
-    if (!editingEpisode) return;
-    const seasonNum = editForm.seasonNumber ? parseInt(editForm.seasonNumber, 10) : (editingEpisode.seasonNumber ?? 1);
-    const epNum = parseInt(editForm.episodeNumber, 10);
-    if (!epNum) {
-      toast({ title: 'Erro', description: 'Número do episódio inválido.', variant: 'destructive' });
-      return;
-    }
-    setTmdbFetching(true);
-    try {
-      const data = await fetchTmdb(`/tv/${tmdbLookupId}/season/${seasonNum}/episode/${epNum}`);
-      const stillUrl = data.still_path ? tmdbStill(data.still_path, 'w300') : '';
-      setEditForm(p => ({
-        ...p,
-        title: data.name || p.title,
-        customThumbnailUrl: stillUrl || p.customThumbnailUrl,
-      }));
-      toast({ title: 'TMDB', description: 'Título e thumbnail preenchidos. URL do servidor preservada.' });
-    } catch (err: any) {
-      toast({ title: 'TMDB', description: err.message, variant: 'destructive' });
-    } finally {
-      setTmdbFetching(false);
     }
   };
 
@@ -813,12 +789,45 @@ function EpisodesManager({ work }: { work: Work }) {
               <div className="space-y-1.5">
                 <Label className="text-zinc-400 text-xs">Thumbnail (URL)</Label>
                 <div className="flex gap-2">
-                  <Input value={addForm.customThumbnailUrl} onChange={e => setAddForm(p => ({ ...p, customThumbnailUrl: e.target.value }))} placeholder="Cole URL ou use Thumbnails TMDB" className="bg-zinc-900 border-white/10 h-9 flex-1" />
+                  <Input value={addForm.customThumbnailUrl} onChange={e => setAddForm(p => ({ ...p, customThumbnailUrl: e.target.value }))} placeholder="Cole URL ou selecione abaixo" className="bg-zinc-900 border-white/10 h-9 flex-1" />
                   {addForm.customThumbnailUrl && (
                     <img src={addForm.customThumbnailUrl} alt="" className="h-9 w-16 object-cover rounded border border-white/10 shrink-0" />
                   )}
                 </div>
               </div>
+              {work.type === 'tv' && work.tmdbId && (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowAddTmdb(p => !p)}
+                    className="w-full h-8 border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 text-xs"
+                  >
+                    <Images className="h-3.5 w-3.5 mr-1.5" />
+                    {showAddTmdb ? 'Ocultar seletor TMDB' : 'Selecionar thumbnail do TMDB'}
+                  </Button>
+                  {showAddTmdb && (
+                    <div className="rounded-lg border border-blue-500/20 bg-zinc-900/60 p-3">
+                      <TmdbEpisodePicker
+                        tmdbId={tmdbLookupId}
+                        episodes={episodes ?? []}
+                        onApply={(epNum, seasonNum, thumbUrl, title) => {
+                          setAddForm(p => ({
+                            ...p,
+                            episodeNumber: String(epNum),
+                            seasonNumber: String(seasonNum),
+                            title: title || p.title,
+                            customThumbnailUrl: thumbUrl || p.customThumbnailUrl,
+                          }));
+                          toast({ title: 'TMDB aplicado', description: 'Formulário preenchido. Confira e clique em Adicionar.' });
+                          setShowAddTmdb(false);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label className="text-zinc-300 text-xs font-semibold flex items-center gap-1.5">
                   <Link className="h-3.5 w-3.5 text-primary" /> URL do Servidor (Serve)
@@ -862,33 +871,49 @@ function EpisodesManager({ work }: { work: Work }) {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-zinc-400 text-xs">Título *</Label>
-                  {work.type === 'tv' && work.tmdbId && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={handleFetchTmdbForEdit}
-                      disabled={tmdbFetching}
-                      className="h-6 text-[11px] px-2 border-blue-500/40 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
-                    >
-                      {tmdbFetching ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Images className="h-3 w-3 mr-1" />}
-                      Buscar no TMDB
-                    </Button>
-                  )}
-                </div>
+                <Label className="text-zinc-400 text-xs">Título *</Label>
                 <Input required value={editForm.title} onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} className="bg-zinc-900 border-white/10 h-9" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-zinc-400 text-xs">Thumbnail (URL)</Label>
                 <div className="flex gap-2">
-                  <Input value={editForm.customThumbnailUrl} onChange={e => setEditForm(p => ({ ...p, customThumbnailUrl: e.target.value }))} placeholder="Cole URL ou use Thumbnails TMDB" className="bg-zinc-900 border-white/10 h-9 flex-1" />
+                  <Input value={editForm.customThumbnailUrl} onChange={e => setEditForm(p => ({ ...p, customThumbnailUrl: e.target.value }))} placeholder="Cole URL ou selecione abaixo" className="bg-zinc-900 border-white/10 h-9 flex-1" />
                   {editForm.customThumbnailUrl && (
                     <img src={editForm.customThumbnailUrl} alt="" className="h-9 w-16 object-cover rounded border border-white/10 shrink-0" />
                   )}
                 </div>
               </div>
+              {work.type === 'tv' && work.tmdbId && (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowEditTmdb(p => !p)}
+                    className="w-full h-8 border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 text-xs"
+                  >
+                    <Images className="h-3.5 w-3.5 mr-1.5" />
+                    {showEditTmdb ? 'Ocultar seletor TMDB' : 'Selecionar thumbnail do TMDB'}
+                  </Button>
+                  {showEditTmdb && (
+                    <div className="rounded-lg border border-blue-500/20 bg-zinc-900/60 p-3">
+                      <TmdbEpisodePicker
+                        tmdbId={tmdbLookupId}
+                        episodes={episodes ?? []}
+                        onApply={(_epNum, _seasonNum, thumbUrl, title) => {
+                          setEditForm(p => ({
+                            ...p,
+                            title: title || p.title,
+                            customThumbnailUrl: thumbUrl || p.customThumbnailUrl,
+                          }));
+                          toast({ title: 'TMDB aplicado', description: 'Título e thumbnail preenchidos. URL do servidor preservada. Clique em Salvar para confirmar.' });
+                          setShowEditTmdb(false);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label className="text-zinc-300 text-xs font-semibold flex items-center gap-1.5">
                   <Link className="h-3.5 w-3.5 text-primary" /> URL do Servidor (Serve)
