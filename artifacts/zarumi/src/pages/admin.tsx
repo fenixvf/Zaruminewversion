@@ -28,7 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import {
   Loader2, Search, Trash2, Edit, Plus, Tv, Film, Eye, ListVideo,
   Save, Link, Images, ChevronLeft, LayoutDashboard, Library,
-  PlusCircle, Trophy, TrendingUp, Star, BarChart3, Menu, X
+  PlusCircle, Trophy, TrendingUp, Star, BarChart3, Menu, X, Download
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { Episode, Work } from '@workspace/api-client-react';
@@ -477,8 +477,49 @@ function EpisodesManager({ work }: { work: Work }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [panel, setPanel] = useState<'list' | 'add' | 'edit' | 'tmdb'>('list');
+  const [panel, setPanel] = useState<'list' | 'add' | 'edit' | 'tmdb' | 'vlm'>('list');
   const [editingEpisode, setEditingEpisode] = useState<Episode | null>(null);
+
+  const [vlmUrl, setVlmUrl] = useState('');
+  const [vlmImporting, setVlmImporting] = useState(false);
+
+  const handleVlmImport = async () => {
+    if (!vlmUrl.trim()) {
+      toast({ title: 'URL obrigatória', description: 'Cole a URL do endpoint VLM antes de importar.', variant: 'destructive' });
+      return;
+    }
+    setVlmImporting(true);
+    try {
+      const res = await fetch(vlmUrl.trim());
+      if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
+      const items: { episodeNumber: number; title: string; videoSlug?: string; duration?: number; customThumbnailUrl?: string }[] = await res.json();
+      if (!Array.isArray(items)) throw new Error('Resposta não é um array JSON.');
+      let imported = 0;
+      for (const item of items) {
+        await addEpisode.mutateAsync({
+          id: work.id,
+          data: {
+            episodeNumber: item.episodeNumber,
+            seasonNumber: null,
+            title: item.title || `Episódio ${item.episodeNumber}`,
+            duration: item.duration ?? null,
+            customThumbnailUrl: item.customThumbnailUrl ?? null,
+            videoSlug: item.videoSlug ?? null,
+          },
+        });
+        imported++;
+      }
+      queryClient.invalidateQueries({ queryKey: getListEpisodesQueryKey(work.id) });
+      queryClient.invalidateQueries({ queryKey: getGetSiteStatsQueryKey() });
+      toast({ title: 'Importação concluída', description: `${imported} episódio(s) importado(s) com sucesso.` });
+      setVlmUrl('');
+      setPanel('list');
+    } catch (err: any) {
+      toast({ title: 'Erro na importação', description: err?.message ?? 'Falha ao importar do VLM.', variant: 'destructive' });
+    } finally {
+      setVlmImporting(false);
+    }
+  };
 
   const [addForm, setAddForm] = useState({
     episodeNumber: '', seasonNumber: '', title: '', duration: '', customThumbnailUrl: '', videoSlug: '',
@@ -627,6 +668,10 @@ function EpisodesManager({ work }: { work: Work }) {
               <Images className="h-3.5 w-3.5 mr-1" /> Thumbnails TMDB
             </Button>
           )}
+          <Button size="sm" variant={panel === 'vlm' ? 'default' : 'outline'} onClick={() => setPanel('vlm')}
+            className={panel === 'vlm' ? 'bg-emerald-600 text-white' : 'border-white/10 text-zinc-400 hover:text-white'}>
+            <Download className="h-3.5 w-3.5 mr-1" /> Importar VLM
+          </Button>
         </div>
 
         {panel === 'list' && (
@@ -803,6 +848,57 @@ function EpisodesManager({ work }: { work: Work }) {
               episodes={episodes || []}
               onApply={handleTmdbApply}
             />
+          </div>
+        )}
+
+        {panel === 'vlm' && (
+          <div className="mt-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Button variant="ghost" size="sm" onClick={() => setPanel('list')} className="text-zinc-400 hover:text-white -ml-2">
+                <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
+              </Button>
+              <span className="text-white font-semibold">Importar do VLM</span>
+            </div>
+
+            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-4">
+              <div>
+                <p className="text-sm text-zinc-300 font-medium mb-1">URL do endpoint VLM</p>
+                <p className="text-xs text-zinc-500 mb-3">
+                  Cole a URL no formato <span className="font-mono text-zinc-400">https://SEU-VLM.onrender.com/api/folders/5/episodes</span>
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    value={vlmUrl}
+                    onChange={e => setVlmUrl(e.target.value)}
+                    placeholder="https://seu-vlm.onrender.com/api/folders/5/episodes"
+                    className="bg-zinc-900 border-white/10 font-mono text-xs h-9 flex-1"
+                    disabled={vlmImporting}
+                  />
+                </div>
+              </div>
+
+              <Button
+                onClick={handleVlmImport}
+                disabled={vlmImporting || !vlmUrl.trim()}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-10"
+              >
+                {vlmImporting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Importando...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Importar do VLM
+                  </>
+                )}
+              </Button>
+
+              <p className="text-xs text-zinc-600 text-center">
+                Os episódios serão adicionados à obra sem sobrescrever os existentes.
+              </p>
+            </div>
           </div>
         )}
       </DialogContent>
