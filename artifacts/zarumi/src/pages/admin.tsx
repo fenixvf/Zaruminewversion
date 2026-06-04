@@ -613,19 +613,24 @@ function EpisodesManager({ work }: { work: Work }) {
   ) => {
     const effectiveSeason = dbSeasonTarget ? parseInt(dbSeasonTarget, 10) : tmdbSeasonNumber;
 
-    const existing =
+    // Three-tier search by number/season
+    const bySearch =
       episodes?.find(e => e.episodeNumber === episodeNumber && e.seasonNumber === effectiveSeason) ??
       episodes?.find(e => e.episodeNumber === episodeNumber && e.seasonNumber == null) ??
       episodes?.find(e => e.episodeNumber === episodeNumber);
 
-    if (existing) {
+    // If the user came from the edit panel, always prefer that episode
+    // (handles TMDB/DB numbering mismatches and stale query state)
+    const target = bySearch ?? editingEpisode ?? null;
+
+    if (target) {
       try {
         await updateEpisode.mutateAsync({
           workId: work.id,
-          episodeId: existing.id,
+          episodeId: target.id,
           data: { customThumbnailUrl: thumbnailUrl },
         });
-        toast({ title: 'Thumbnail aplicada', description: `EP ${episodeNumber} — ${existing.title}` });
+        toast({ title: 'Thumbnail aplicada', description: `EP ${target.episodeNumber} — ${target.title}` });
         queryClient.invalidateQueries({ queryKey: getListEpisodesQueryKey(work.id) });
       } catch {
         toast({ title: 'Erro', description: 'Falha ao aplicar thumbnail.', variant: 'destructive' });
