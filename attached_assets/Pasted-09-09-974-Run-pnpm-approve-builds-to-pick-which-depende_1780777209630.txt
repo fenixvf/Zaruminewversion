@@ -1,0 +1,66 @@
+09:09.974
+│   Run "pnpm approve-builds" to pick which dependencies should be allowed     │
+17:09:09.974
+│   to run scripts.                                                            │
+17:09:09.974
+│                                                                              │
+17:09:09.974
+╰──────────────────────────────────────────────────────────────────────────────╯
+17:09:10.003
+Done in 17.3s using pnpm v10.26.1
+17:09:10.237
+Executing user build command: pnpm run build
+17:09:10.662
+17:09:10.662
+> workspace@0.0.0 build /opt/buildhome/repo
+17:09:10.662
+> pnpm run typecheck && pnpm -r --if-present run build
+17:09:10.662
+17:09:10.980
+17:09:10.981
+> workspace@0.0.0 typecheck /opt/buildhome/repo
+17:09:10.981
+> pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+17:09:10.981
+17:09:11.323
+17:09:11.323
+> workspace@0.0.0 typecheck:libs /opt/buildhome/repo
+17:09:11.323
+> tsc --build
+17:09:11.323
+17:09:16.040
+Scope: 4 of 9 workspace projects
+17:09:16.057
+artifacts/mockup-sandbox typecheck$ tsc -p tsconfig.json --noEmit
+17:09:16.058
+artifacts/api-server typecheck$ tsc -p tsconfig.json --noEmit
+17:09:19.370
+artifacts/api-server typecheck: Done
+17:09:19.373
+artifacts/zarumi typecheck$ tsc -p tsconfig.json --noEmit
+17:09:24.259
+artifacts/mockup-sandbox typecheck: Done
+17:09:24.262
+scripts typecheck$ tsc -p tsconfig.json --noEmit
+17:09:25.419
+scripts typecheck: Done
+17:09:27.761
+artifacts/zarumi typecheck: src/pages/admin.tsx(584,11): error TS2353: Object literal may only specify known properties, and 'seasonNumber' does not exist in type 'EpisodeUpdate'.
+17:09:27.762
+artifacts/zarumi typecheck: src/pages/anime-detail.tsx(20,54): error TS2741: Property 'queryKey' is missing in type '{ enabled: boolean; }' but required in type 'UseQueryOptions<Work, ErrorType<void>, Work, readonly unknown[]>'.
+17:09:27.762
+artifacts/zarumi typecheck: src/pages/anime-detail.tsx(21,52): error TS2741: Property 'queryKey' is missing in type '{ enabled: boolean; }' but required in type 'UseQueryOptions<Episode[], ErrorType<unknown>, Episode[], readonly unknown[]>'.
+17:09:27.824
+artifacts/zarumi typecheck: Failed
+17:09:27.841
+/opt/buildhome/repo/artifacts/zarumi:
+17:09:27.841
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/zarumi@0.0.0 typecheck: `tsc -p tsconfig.json --noEmit`
+17:09:27.842
+Exit status 2
+17:09:27.877
+ ELIFECYCLE  Command failed with exit code 2.
+17:09:27.922
+ ELIFECYCLE  Command failed with exit code 2.
+17:09:27.947
+Failed: error occurred while running build command
