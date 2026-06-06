@@ -5,6 +5,7 @@ import { resolveLink } from '@workspace/api-client-react';
 interface VideoPlayerProps {
   videoUrl: string;
   title?: string;
+  isTvSeries?: boolean;
 }
 
 function formatTime(seconds: number): string {
@@ -37,11 +38,16 @@ function clearProgress(url: string) {
   try { localStorage.removeItem(progressKey(url)); } catch {}
 }
 
-export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
+const SKIP_INTRO_SECONDS = 90;
+const SKIP_INTRO_VISIBLE_MS = 5 * 60 * 1000;
+
+export function VideoPlayer({ videoUrl, title, isTvSeries }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const seekRef = useRef<HTMLInputElement>(null);
   const saveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const skipIntroTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipIntroStartedRef = useRef(false);
 
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
   const [resolving, setResolving] = useState(true);
@@ -60,6 +66,7 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
   const [skipFeedback, setSkipFeedback] = useState<{ dir: 'left' | 'right'; key: number } | null>(null);
   const [isSeeking, setIsSeeking] = useState(false);
   const [resumePrompt, setResumePrompt] = useState<{ savedTime: number } | null>(null);
+  const [skipIntroVisible, setSkipIntroVisible] = useState(true);
 
   const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTapRef = useRef<{ time: number; x: 'left' | 'right' } | null>(null);
@@ -69,6 +76,28 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
 
   useEffect(() => { playingRef.current = playing; }, [playing]);
   useEffect(() => { durationRef.current = duration; }, [duration]);
+
+  useEffect(() => {
+    setSkipIntroVisible(true);
+    skipIntroStartedRef.current = false;
+    if (skipIntroTimerRef.current) { clearTimeout(skipIntroTimerRef.current); skipIntroTimerRef.current = null; }
+  }, [videoUrl]);
+
+  const startSkipIntroTimer = useCallback(() => {
+    if (!isTvSeries || skipIntroStartedRef.current) return;
+    skipIntroStartedRef.current = true;
+    skipIntroTimerRef.current = setTimeout(() => {
+      setSkipIntroVisible(false);
+    }, SKIP_INTRO_VISIBLE_MS);
+  }, [isTvSeries]);
+
+  const handleSkipIntro = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const v = videoRef.current;
+    if (v) v.currentTime = Math.min(v.currentTime + SKIP_INTRO_SECONDS, v.duration || Infinity);
+    setSkipIntroVisible(false);
+    if (skipIntroTimerRef.current) { clearTimeout(skipIntroTimerRef.current); skipIntroTimerRef.current = null; }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,6 +138,7 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
       stopSaveTimer();
       if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
       if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+      if (skipIntroTimerRef.current) clearTimeout(skipIntroTimerRef.current);
     };
   }, [stopSaveTimer]);
 
@@ -319,7 +349,7 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
         src={resolvedUrl}
         className="absolute inset-0 w-full h-full object-contain bg-black"
         preload="metadata"
-        onPlay={() => { setPlaying(true); startSaveTimer(); scheduleHide(); }}
+        onPlay={() => { setPlaying(true); startSaveTimer(); scheduleHide(); startSkipIntroTimer(); }}
         onPause={() => {
           setPlaying(false);
           stopSaveTimer();
@@ -396,6 +426,27 @@ export function VideoPlayer({ videoUrl, title }: VideoPlayerProps) {
 
       {skipFeedback && (
         <SkipAnimation key={skipFeedback.key} dir={skipFeedback.dir} />
+      )}
+
+      {isTvSeries && skipIntroVisible && showControls && !loading && !videoError && !resumePrompt && (
+        <button
+          onClick={handleSkipIntro}
+          className="absolute z-20 flex items-center gap-2 px-4 py-2 rounded-lg border border-white/30 text-white text-sm font-semibold transition-all duration-200 hover:bg-white/20 active:scale-95"
+          style={{
+            bottom: '88px',
+            right: '12px',
+            background: 'rgba(0,0,0,0.55)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+          }}
+        >
+          Pular Abertura
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="5 4 15 12 5 20 5 4"/>
+            <line x1="19" y1="5" x2="19" y2="19"/>
+          </svg>
+        </button>
       )}
 
       <div
