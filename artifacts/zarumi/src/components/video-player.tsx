@@ -214,12 +214,13 @@ export function VideoPlayer({ videoUrl, title, isTvSeries }: VideoPlayerProps) {
       lastTapRef.current = null;
       skip(side === 'left' ? -5 : 5);
     } else {
+      const controlsWereVisible = showControlsRef.current;
       lastTapRef.current = { time: now, x: side };
       if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
       tapTimerRef.current = setTimeout(() => {
         if (lastTapRef.current) {
           lastTapRef.current = null;
-          if (!showControlsRef.current) {
+          if (!controlsWereVisible) {
             showControlsNow();
           } else {
             togglePlay();
@@ -231,12 +232,8 @@ export function VideoPlayer({ videoUrl, title, isTvSeries }: VideoPlayerProps) {
 
   const handleVideoAreaClick = useCallback(() => {
     if (!resolvedUrl || resolving) return;
-    if (!showControlsRef.current) {
-      showControlsNow();
-    } else {
-      togglePlay();
-    }
-  }, [resolvedUrl, resolving, showControlsNow, togglePlay]);
+    togglePlay();
+  }, [resolvedUrl, resolving, togglePlay]);
 
   const handleSeekChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = videoRef.current;
