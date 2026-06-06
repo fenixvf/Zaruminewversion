@@ -8,7 +8,7 @@ import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Spinner } from '@/components/ui/spinner';
 import { ContinueWatchingRow } from '@/components/continue-watching-row';
-import { getContinueWatching, type ContinueWatchingItem } from '@/lib/continue-watching';
+import type { ContinueWatchingItem } from '@/lib/continue-watching';
 
 function HeroBanner() {
   const { data: featuredWorks, isLoading } = useListFeaturedWorks();
@@ -124,11 +124,6 @@ export default function Home() {
   const { data: recentWorks, isLoading: isLoadingRecent } = useListRecentWorks({ limit: 10 });
   const { data: topWorks, isLoading: isLoadingTop } = useGetTop10();
   const [, setLocation] = useLocation();
-  const [cwItems, setCwItems] = useState<ContinueWatchingItem[]>([]);
-
-  useEffect(() => {
-    setCwItems(getContinueWatching());
-  }, []);
 
   const handleContinuePlay = useCallback((item: ContinueWatchingItem) => {
     setLocation(`/anime/${item.workId}?resume=${item.episodeId}`);
@@ -140,9 +135,7 @@ export default function Home() {
 
       <div className="relative z-10 -mt-20 flex flex-col gap-4 pb-20 bg-background">
 
-        {cwItems.length > 0 && (
-          <ContinueWatchingRow onPlay={handleContinuePlay} />
-        )}
+        <ContinueWatchingRow onPlay={handleContinuePlay} />
 
         <Section title="Adicionados Recentemente">
           {isLoadingRecent ? (

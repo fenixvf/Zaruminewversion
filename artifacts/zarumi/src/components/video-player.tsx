@@ -6,6 +6,7 @@ interface VideoPlayerProps {
   videoUrl: string;
   title?: string;
   isTvSeries?: boolean;
+  isResuming?: boolean;
 }
 
 function formatTime(seconds: number): string {
@@ -41,7 +42,7 @@ function clearProgress(url: string) {
 const SKIP_INTRO_SECONDS = 90;
 const SKIP_INTRO_VISIBLE_MS = 5 * 60 * 1000;
 
-export function VideoPlayer({ videoUrl, title, isTvSeries }: VideoPlayerProps) {
+export function VideoPlayer({ videoUrl, title, isTvSeries, isResuming }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const seekRef = useRef<HTMLInputElement>(null);
@@ -80,8 +81,11 @@ export function VideoPlayer({ videoUrl, title, isTvSeries }: VideoPlayerProps) {
   useEffect(() => { durationRef.current = duration; }, [duration]);
   useEffect(() => { showControlsRef.current = showControls; }, [showControls]);
 
+  const isResumingRef = useRef(false);
+  useEffect(() => { isResumingRef.current = !!isResuming; }, [isResuming]);
+
   useEffect(() => {
-    setSkipIntroVisible(true);
+    setSkipIntroVisible(!isResumingRef.current);
     skipIntroStartedRef.current = false;
     if (skipIntroTimerRef.current) { clearTimeout(skipIntroTimerRef.current); skipIntroTimerRef.current = null; }
   }, [videoUrl]);
@@ -192,6 +196,7 @@ export function VideoPlayer({ videoUrl, title, isTvSeries }: VideoPlayerProps) {
     if (!v || !resumePrompt) return;
     if (resume) {
       v.currentTime = resumePrompt.savedTime;
+      setSkipIntroVisible(false);
     } else {
       clearProgress(videoUrl);
     }

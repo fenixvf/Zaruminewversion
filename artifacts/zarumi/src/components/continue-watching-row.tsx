@@ -1,23 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'wouter';
 import { Play, X, Clock } from 'lucide-react';
-import { getContinueWatching, removeContinueWatching, type ContinueWatchingItem } from '@/lib/continue-watching';
+import { getContinueWatching, getContinueWatchingFromFirestore, removeContinueWatching, type ContinueWatchingItem } from '@/lib/continue-watching';
+import { useAuth } from '@/components/auth-provider';
 
 interface ContinueWatchingRowProps {
   onPlay: (item: ContinueWatchingItem) => void;
 }
 
 export function ContinueWatchingRow({ onPlay }: ContinueWatchingRowProps) {
+  const { user } = useAuth();
   const [items, setItems] = useState<ContinueWatchingItem[]>([]);
 
   useEffect(() => {
-    setItems(getContinueWatching());
-  }, []);
+    if (user) {
+      getContinueWatchingFromFirestore(user).then(setItems);
+    } else {
+      setItems(getContinueWatching());
+    }
+  }, [user]);
 
   const handleRemove = (e: React.MouseEvent, workId: number) => {
     e.preventDefault();
     e.stopPropagation();
-    removeContinueWatching(workId);
+    removeContinueWatching(workId, user);
     setItems(prev => prev.filter(i => i.workId !== workId));
   };
 

@@ -27,6 +27,7 @@ export default function AnimeDetail() {
   const [inList, setInList] = useState(false);
   const [listLoading, setListLoading] = useState(false);
   const [activeEpisode, setActiveEpisode] = useState<Episode | null>(null);
+  const [isResuming, setIsResuming] = useState(false);
   const [selectedSeason, setSelectedSeason] = useState<number>(1);
   const [resumeHandled, setResumeHandled] = useState(false);
 
@@ -54,9 +55,10 @@ export default function AnimeDetail() {
     if (id) recordView.mutate({ id });
   }, [id]);
 
-  const openEpisode = useCallback((ep: Episode) => {
+  const openEpisode = useCallback((ep: Episode, resuming = false) => {
     if (!work) return;
     setActiveEpisode(ep);
+    setIsResuming(resuming);
     const thumb = ep.customThumbnailUrl || (ep.thumbnailPath ? `https://image.tmdb.org/t/p/w300${ep.thumbnailPath}` : null)
       || work.customThumbnailUrl || (work.posterPath ? `https://image.tmdb.org/t/p/w500${work.posterPath}` : null);
     saveContinueWatching({
@@ -68,8 +70,8 @@ export default function AnimeDetail() {
       epTitle: ep.title,
       episodeNumber: ep.episodeNumber,
       seasonNumber: ep.seasonNumber ?? null,
-    });
-  }, [work]);
+    }, user);
+  }, [work, user]);
 
   useEffect(() => {
     if (resumeHandled || !episodes || !work) return;
@@ -78,7 +80,7 @@ export default function AnimeDetail() {
     if (resumeId) {
       const ep = episodes.find(e => String(e.id) === resumeId);
       if (ep) {
-        openEpisode(ep);
+        openEpisode(ep, true);
       }
       setResumeHandled(true);
     }
@@ -154,7 +156,7 @@ export default function AnimeDetail() {
               </button>
             </div>
             {activeEpisode.videoSlug ? (
-              <VideoPlayer videoUrl={activeEpisode.videoSlug} title={`${work.title} - Ep. ${activeEpisode.episodeNumber}`} isTvSeries={work.type === 'tv'} />
+              <VideoPlayer videoUrl={activeEpisode.videoSlug} title={`${work.title} - Ep. ${activeEpisode.episodeNumber}`} isTvSeries={work.type === 'tv'} isResuming={isResuming} />
             ) : (
               <div className="aspect-video bg-zinc-900 rounded-xl flex flex-col items-center justify-center gap-3 border border-white/10">
                 <Play className="h-10 w-10 text-zinc-600" />
