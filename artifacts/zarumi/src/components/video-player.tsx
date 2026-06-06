@@ -73,9 +73,11 @@ export function VideoPlayer({ videoUrl, title, isTvSeries }: VideoPlayerProps) {
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playingRef = useRef(false);
   const durationRef = useRef(0);
+  const showControlsRef = useRef(true);
 
   useEffect(() => { playingRef.current = playing; }, [playing]);
   useEffect(() => { durationRef.current = duration; }, [duration]);
+  useEffect(() => { showControlsRef.current = showControls; }, [showControls]);
 
   useEffect(() => {
     setSkipIntroVisible(true);
@@ -91,13 +93,23 @@ export function VideoPlayer({ videoUrl, title, isTvSeries }: VideoPlayerProps) {
     }, SKIP_INTRO_VISIBLE_MS);
   }, [isTvSeries]);
 
-  const handleSkipIntro = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
+  const doSkipIntro = useCallback(() => {
     const v = videoRef.current;
     if (v) v.currentTime = Math.min(v.currentTime + SKIP_INTRO_SECONDS, v.duration || Infinity);
     setSkipIntroVisible(false);
     if (skipIntroTimerRef.current) { clearTimeout(skipIntroTimerRef.current); skipIntroTimerRef.current = null; }
   }, []);
+
+  const handleSkipIntroClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    doSkipIntro();
+  }, [doSkipIntro]);
+
+  const handleSkipIntroTouch = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    doSkipIntro();
+  }, [doSkipIntro]);
 
   useEffect(() => {
     let cancelled = false;
@@ -207,20 +219,24 @@ export function VideoPlayer({ videoUrl, title, isTvSeries }: VideoPlayerProps) {
       tapTimerRef.current = setTimeout(() => {
         if (lastTapRef.current) {
           lastTapRef.current = null;
-          setShowControls(prev => {
-            if (!prev) { scheduleHide(); return true; }
-            else if (playingRef.current) { if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current); return false; }
-            return prev;
-          });
+          if (!showControlsRef.current) {
+            showControlsNow();
+          } else {
+            togglePlay();
+          }
         }
       }, 300);
     }
-  }, [resolvedUrl, resolving, skip, scheduleHide]);
+  }, [resolvedUrl, resolving, skip, showControlsNow, togglePlay]);
 
   const handleVideoAreaClick = useCallback(() => {
     if (!resolvedUrl || resolving) return;
-    togglePlay();
-  }, [resolvedUrl, resolving, togglePlay]);
+    if (!showControlsRef.current) {
+      showControlsNow();
+    } else {
+      togglePlay();
+    }
+  }, [resolvedUrl, resolving, showControlsNow, togglePlay]);
 
   const handleSeekChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const v = videoRef.current;
@@ -430,8 +446,9 @@ export function VideoPlayer({ videoUrl, title, isTvSeries }: VideoPlayerProps) {
 
       {isTvSeries && skipIntroVisible && showControls && !loading && !videoError && !resumePrompt && (
         <button
-          onClick={handleSkipIntro}
-          className="absolute z-20 flex items-center gap-2 px-4 py-2 rounded-lg border border-white/30 text-white text-sm font-semibold transition-all duration-200 hover:bg-white/20 active:scale-95"
+          onClick={handleSkipIntroClick}
+          onTouchStart={handleSkipIntroTouch}
+          className="absolute z-30 flex items-center gap-2 px-4 py-2 rounded-lg border border-white/30 text-white text-sm font-semibold transition-all duration-200 hover:bg-white/20 active:scale-95"
           style={{
             bottom: '88px',
             right: '12px',
