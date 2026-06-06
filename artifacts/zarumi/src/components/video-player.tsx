@@ -74,6 +74,7 @@ export function VideoPlayer({ videoUrl, title, isTvSeries }: VideoPlayerProps) {
   const playingRef = useRef(false);
   const durationRef = useRef(0);
   const showControlsRef = useRef(true);
+  const lastTouchTimeRef = useRef(0);
 
   useEffect(() => { playingRef.current = playing; }, [playing]);
   useEffect(() => { durationRef.current = duration; }, [duration]);
@@ -202,6 +203,7 @@ export function VideoPlayer({ videoUrl, title, isTvSeries }: VideoPlayerProps) {
   const handleVideoAreaTouch = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     if (!resolvedUrl || resolving) return;
     e.preventDefault();
+    lastTouchTimeRef.current = Date.now();
     const touch = e.changedTouches[0];
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const x = touch.clientX - rect.left;
@@ -232,6 +234,7 @@ export function VideoPlayer({ videoUrl, title, isTvSeries }: VideoPlayerProps) {
 
   const handleVideoAreaClick = useCallback(() => {
     if (!resolvedUrl || resolving) return;
+    if (Date.now() - lastTouchTimeRef.current < 600) return;
     togglePlay();
   }, [resolvedUrl, resolving, togglePlay]);
 
